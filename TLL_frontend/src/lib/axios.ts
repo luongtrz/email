@@ -1,0 +1,159 @@
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig, AxiosError } from 'axios';
+import { API_BASE_URL, API_ENDPOINTS, TOKEN_KEY } from '../config/constants';
+import { useAuthStore } from '../store/auth.store';
+
+// Create axios instance
+export const apiClient: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 10000,
+});
+
+// ============================================
+// PHRASE 2: ADVANCED TOKEN MANAGEMENT
+// ============================================
+
+// Concurrency control - Tránh gọi refresh token nhiều lần
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value?: unknown) => void;
+  reject: (reason?: unknown) => void;
+}> = [];
+
+const processQueue = (error: AxiosError | null, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+
+  failedQueue = [];
+};
+
+// Get access token từ Zustand store
+const getAccessToken = (): string | null => {
+  return useAuthStore.getState().accessToken;
+};
+
+// Set access token vào Zustand store
+const setAccessToken = (token: string | null): void => {
+  useAuthStore.getState().setAccessToken(token);
+};
+
+// Logout helper
+const logout = (): void => {
+  useAuthStore.getState().logout();
+  localStorage.removeItem(TOKEN_KEY.REFRESH);
+  
+  // Redirect to login
+  if (typeof window !== 'undefined') {
+    window.location.href = '/login';
+  }
+};
+
+// REQUEST INTERCEPTOR - Auto-attach access token
+apiClient.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const token = getAccessToken();
+    
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// RESPONSE INTERCEPTOR - Handle 401 & auto-refresh
+apiClient.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    // Nếu không phải lỗi 401 hoặc không có config, reject ngay
+    if (!originalRequest || error.response?.status !== 401) {
+      return Promise.reject(error);
+    }
+
+    // Nếu request đã retry rồi, logout
+    if (originalRequest._retry) {
+      logout();
+      return Promise.reject(error);
+    }
+
+    // Nếu đang refresh token, đưa request vào queue
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      })
+        .then((token) => {
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+          }
+          return apiClient(originalRequest);
+        })
+        .catch((err) => {
+          return Promise.reject(err);
+        });
+    }
+
+    // Bắt đầu refresh token
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    const refreshToken = localStorage.getItem(TOKEN_KEY.REFRESH);
+
+    if (!refreshToken) {
+      logout();
+      return Promise.reject(error);
+    }
+
+    try {
+      // Call refresh token API
+      const response = await axios.post(
+        `${API_BASE_URL}${API_ENDPOINTS.AUTH.REFRESH}`,
+        { refreshToken },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const { accessToken, refreshToken: newRefreshToken } = response.data;
+
+      // Update tokens
+      setAccessToken(accessToken);
+      if (newRefreshToken) {
+        localStorage.setItem(TOKEN_KEY.REFRESH, newRefreshToken);
+      }
+
+      // Process queue
+      processQueue(null, accessToken);
+
+      // Retry original request
+      if (originalRequest.headers) {
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+      }
+
+      return apiClient(originalRequest);
+    } catch (refreshError) {
+      processQueue(refreshError as AxiosError, null);
+      logout();
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
+  }
+);
+
+export default apiClient;
