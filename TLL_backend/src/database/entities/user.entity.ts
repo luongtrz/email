@@ -26,6 +26,15 @@ googleId: string;
 @Column({ nullable: true, name: 'refresh_token' })
 refreshToken: string;
 
+@Column({ nullable: true, name: 'google_access_token', type: 'text' })
+googleAccessToken: string;
+
+@Column({ nullable: true, name: 'google_refresh_token', type: 'text' })
+googleRefreshToken: string;
+
+@Column({ nullable: true, name: 'google_token_expiry', type: 'timestamptz' })
+googleTokenExpiry: Date;
+
 @Column({ default: 'user' })
 role: string;
 

@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { User } from '../../database/entities/user.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { GoogleTokenService } from './services/google-token.service';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     ConfigModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy, GoogleTokenService],
+  exports: [AuthService, GoogleTokenService],
 })
 export class AuthModule {}

@@ -7,6 +7,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import helmet from 'helmet';
 import * as compression from 'compression';
+import * as cookieParser from 'cookie-parser';
 import { validationExceptionFactory } from './common/filters/validation-exception.filter';
 
 async function bootstrap() {
@@ -20,6 +21,9 @@ async function bootstrap() {
     }),
   );
   app.use(compression());
+  
+  // Cookie parser for JWT tokens
+  app.use(cookieParser());
 
   // CORS
   app.enableCors({

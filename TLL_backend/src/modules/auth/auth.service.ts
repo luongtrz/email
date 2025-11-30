@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../../database/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleTokenService } from './services/google-token.service';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +20,7 @@ export class AuthService {
     private userRepository: Repository<User>,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private googleTokenService: GoogleTokenService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -163,6 +165,72 @@ export class AuthService {
   async logout(userId: string) {
     await this.userRepository.update(userId, { refreshToken: null });
     return { message: 'Logged out successfully' };
+  }
+
+  async googleOAuthCallback(code: string, userId?: string) {
+    // Exchange authorization code for tokens
+    const { accessToken, refreshToken, expiryDate, userInfo } =
+      await this.googleTokenService.exchangeCodeForTokens(code);
+
+    if (!userInfo?.email) {
+      throw new UnauthorizedException('Failed to get user email from Google');
+    }
+
+    // Find or create user
+    let user = await this.userRepository.findOne({
+      where: { email: userInfo.email },
+    });
+
+    if (!user) {
+      // Create new user
+      user = this.userRepository.create({
+        email: userInfo.email,
+        name: userInfo.name || userInfo.email.split('@')[0],
+        googleId: userInfo.sub,
+        googleAccessToken: accessToken,
+        googleRefreshToken: refreshToken,
+        googleTokenExpiry: expiryDate,
+      });
+      user = await this.userRepository.save(user);
+    } else {
+      // Update existing user with Google tokens
+      user.googleId = userInfo.sub;
+      user.googleAccessToken = accessToken;
+      user.googleRefreshToken = refreshToken;
+      user.googleTokenExpiry = expiryDate;
+      await this.userRepository.save(user);
+      // Reload user to ensure all fields are populated
+      user = await this.userRepository.findOne({
+        where: { id: user.id },
+      });
+    }
+
+    if (!user) {
+      throw new UnauthorizedException('Failed to create or update user');
+    }
+
+    try {
+      // Generate JWT tokens for the application
+      const tokens = await this.generateTokens(user);
+      await this.updateRefreshToken(user.id, tokens.refreshToken);
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        },
+        ...tokens,
+      };
+    } catch (error) {
+      console.error('Error generating tokens:', error);
+      throw new UnauthorizedException('Failed to generate authentication tokens: ' + error.message);
+    }
+  }
+
+  getGoogleAuthUrl(state?: string): string {
+    return this.googleTokenService.generateAuthUrl(state);
   }
 
   private async generateTokens(user: User) {

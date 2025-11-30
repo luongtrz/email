@@ -12,25 +12,22 @@ export default registerAs('app', () => ({
     enabled:
       process.env.SWAGGER_ENABLED === 'true' ||
       process.env.NODE_ENV !== 'production',
-    title: process.env.SWAGGER_TITLE || 'Student API',
+    title: process.env.SWAGGER_TITLE || 'TLL API',
     description:
-      process.env.SWAGGER_DESCRIPTION || 'Student Management API Documentation',
+      process.env.SWAGGER_DESCRIPTION || 'TLL Management API Documentation',
     version: process.env.SWAGGER_VERSION || '1.0.0',
-    tag: process.env.SWAGGER_TAG || 'student-api',
+    tag: process.env.SWAGGER_TAG || 'tll-api',
   },
-  stack: {
-    url: process.env.STACK_URL || 'https://id.student360.asia',
-    projectId: process.env.STACK_PROJECT_ID || '',
-    secretServerKey: process.env.STACK_SECRET_SERVER_KEY || '',
-    publishableClientKey: process.env.STACK_SECRET_CLIENT_KEY || '',
-    userInfoUrl:
-      process.env.STACK_USER_INFO_URL ||
-      'http://localhost:8102/api/v1/users/me',
-    emailVerificationTemplate:
-      process.env.STACK_EMAIL_VERIFICATION_TEMPLATE || 'email_verification',
-    urlVerify:
-      process.env.STACK_URL_VERIFY || 'http://localhost:3000/api/auth/verify',
-    urlReset:
-      process.env.STACK_URL_RESET || 'http://localhost:4000/auth/forgot',
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/google/callback',
+    scopes: process.env.GOOGLE_OAUTH_SCOPES?.split(',') || [
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/gmail.modify',
+      'https://www.googleapis.com/auth/gmail.send',
+    ],
   },
 }));
