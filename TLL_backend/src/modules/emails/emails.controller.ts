@@ -19,6 +19,7 @@ import { GetEmailsDto } from './dto/get-emails.dto';
 import { SendEmailDto } from './dto/send-email.dto';
 import { ModifyEmailDto } from './dto/modify-email.dto';
 import { Email } from './interfaces/email.interface';
+import { GetDetailEmailsDto } from './dto/get-detail-emails.dto';
 
 @ApiTags('emails')
 @Controller()
@@ -38,7 +39,7 @@ export class EmailsController {
   async getEmailsByMailbox(
     @Request() req,
     @Param('id') mailboxId: string,
-    @Query() dto: GetEmailsDto,
+    @Query() dto: GetDetailEmailsDto,
   ): Promise<{ emails: Email[]; pagination: any }> {
     return this.emailsService.getEmails(req.user.id, {
       ...dto,

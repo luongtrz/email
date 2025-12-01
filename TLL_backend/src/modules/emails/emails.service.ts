@@ -35,8 +35,6 @@ export class EmailsService {
   ) {}
 
   async getMailboxes(userId: string) {
-    const labels = await this.gmailApiService.listLabels(userId);
-
     // Standard mailboxes
     const standardMailboxes = [
       { id: 'inbox', name: 'Inbox', icon: 'inbox', color: '#4285f4' },
@@ -48,7 +46,7 @@ export class EmailsService {
       { id: 'starred', name: 'Starred', icon: 'star', color: '#fbbc04' },
     ];
 
-    // Get message counts for each mailbox
+    // Fetch message counts for each mailbox label in parallel
     const mailboxesWithCounts = await Promise.all(
       standardMailboxes.map(async (mailbox) => {
         const labelId = this.folderToLabelMap[mailbox.id];
@@ -57,20 +55,20 @@ export class EmailsService {
         }
 
         try {
-          const result = await this.gmailApiService.listMessages(userId, {
-            labelIds: [labelId],
-            maxResults: 1,
-          });
+          // Get full label details including message count
+          const label = await this.gmailApiService.getLabel(userId, labelId);
+          const count = label.messagesTotal || 0;
+
           return {
             ...mailbox,
-            count: result.resultSizeEstimate || 0,
+            count,
           };
         } catch (error) {
+          console.warn(`Failed to get count for label ${labelId}:`, error.message);
           return { ...mailbox, count: 0 };
         }
       }),
     );
-
     return mailboxesWithCounts;
   }
 

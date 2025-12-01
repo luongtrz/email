@@ -39,6 +39,15 @@ export class GmailApiService {
   }
 
   /**
+   * Get a single label by ID (includes message counts)
+   */
+  async getLabel(userId: string, labelId: string) {
+    const gmail = await this.getGmailClient(userId);
+    const response = await gmail.users.labels.get({ userId: 'me', id: labelId });
+    return response.data;
+  }
+
+  /**
    * List messages with pagination
    */
   async listMessages(
