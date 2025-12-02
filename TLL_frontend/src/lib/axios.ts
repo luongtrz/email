@@ -84,6 +84,14 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Check if error message contains Gmail-specific errors
+    const errorMessage = (error.response?.data as any)?.message || '';
+    if (errorMessage.includes('Gmail account not connected') || 
+        errorMessage.includes('Please connect your Gmail account')) {
+      // Don't retry, let component show connection banner
+      return Promise.reject(error);
+    }
+
     // Nếu request đã retry rồi, logout
     if (originalRequest._retry) {
       logout();

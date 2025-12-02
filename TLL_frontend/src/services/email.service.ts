@@ -7,30 +7,47 @@ export const emailService = {
   // Get all mailboxes with counts
   getMailboxes: async (): Promise<Folder[]> => {
     const response = await apiClient.get(API_ENDPOINTS.EMAILS.MAILBOXES);
+    // Backend returns array directly
     return response.data;
   },
 
   // Get emails with filters
-  getEmails: async (filters?: { folder?: string; search?: string; page?: number; limit?: number }): Promise<Email[]> => {
-    const params = new URLSearchParams();
-    if (filters?.folder) params.append('folder', filters.folder);
-    if (filters?.search) params.append('search', filters.search);
-    if (filters?.page) params.append('page', filters.page.toString());
-    if (filters?.limit) params.append('limit', filters.limit.toString());
+  getEmails: async (filters?: { 
+    folder?: string; 
+    search?: string; 
+    page?: number; 
+    limit?: number;
+  }): Promise<{ emails: Email[]; pagination: any }> => {
+    const params: any = {};
+    if (filters?.search) params.search = filters.search;
+    if (filters?.page) params.page = filters.page;
+    if (filters?.limit) params.limit = filters.limit;
 
-    const response = await apiClient.get(`${API_ENDPOINTS.EMAILS.LIST}?${params}`);
-    return response.data.emails || response.data;
+    let response;
+    if (filters?.folder) {
+      // Use folder-specific endpoint
+      response = await apiClient.get(
+        API_ENDPOINTS.EMAILS.EMAILS_BY_FOLDER(filters.folder),
+        { params }
+      );
+    } else {
+      // Use general list endpoint
+      response = await apiClient.get(API_ENDPOINTS.EMAILS.LIST, { params });
+    }
+
+    // Backend returns { emails: [], pagination: {} }
+    return {
+      emails: response.data.emails || [],
+      pagination: response.data.pagination || { total: 0, page: 1, limit: 20 },
+    };
   },
 
-  // Get emails by folder
-  getEmailsByFolder: async (folderId: string, filters?: { search?: string; page?: number; limit?: number }): Promise<Email[]> => {
-    const params = new URLSearchParams();
-    if (filters?.search) params.append('search', filters.search);
-    if (filters?.page) params.append('page', filters.page.toString());
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-
-    const response = await apiClient.get(`${API_ENDPOINTS.EMAILS.EMAILS_BY_FOLDER(folderId)}?${params}`);
-    return response.data.emails || response.data;
+  // Get emails by folder (alias for backwards compatibility)
+  getEmailsByFolder: async (
+    folderId: string, 
+    filters?: { search?: string; page?: number; limit?: number }
+  ): Promise<{ emails: Email[]; pagination: any }> => {
+    return emailService.getEmails({ ...filters, folder: folderId });
   },
 
   // Get single email by ID
@@ -44,18 +61,46 @@ export const emailService = {
     }
   },
 
-  // Mark email as read
+  // Modify email (mark read/unread, star, archive, delete)
+  modifyEmail: async (id: string, action: {
+    markAsRead?: boolean;
+    markUnread?: boolean;
+    star?: boolean;
+    unstar?: boolean;
+    archive?: boolean;
+    delete?: boolean;
+  }): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.EMAILS.MODIFY(id), action);
+  },
+
+  // Mark email as read (legacy support)
   markAsRead: async (id: string): Promise<void> => {
-    await apiClient.post(API_ENDPOINTS.EMAILS.MARK_READ(id));
+    await emailService.modifyEmail(id, { markAsRead: true });
   },
 
-  // Toggle starred
+  // Toggle starred (legacy support)
   toggleStar: async (id: string): Promise<void> => {
-    await apiClient.post(API_ENDPOINTS.EMAILS.TOGGLE_STAR(id));
+    // Note: Backend modify endpoint handles toggle automatically
+    await emailService.modifyEmail(id, { star: true });
   },
 
-  // Seed mock data (for demo)
-  seedMockData: async (): Promise<void> => {
-    await apiClient.post(API_ENDPOINTS.EMAILS.SEED);
+  // Send email
+  sendEmail: async (data: {
+    to: string[];
+    subject: string;
+    body: string;
+    cc?: string[];
+    bcc?: string[];
+  }): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.EMAILS.SEND, data);
+  },
+
+  // Download attachment
+  downloadAttachment: async (messageId: string, attachmentId: string): Promise<Blob> => {
+    const response = await apiClient.get(
+      API_ENDPOINTS.EMAILS.ATTACHMENT(attachmentId, messageId),
+      { responseType: 'blob' }
+    );
+    return response.data;
   },
 };

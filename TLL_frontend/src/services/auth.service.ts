@@ -41,4 +41,23 @@ export const authApi = {
     );
     return { data: response.data };
   },
+
+  // G04: Get Google OAuth authorization URL
+  getGoogleAuthUrl: async (): Promise<{ url: string }> => {
+    const response = await apiClient.get(API_ENDPOINTS.AUTH.GOOGLE_AUTH_URL);
+    return response.data;
+  },
+
+  // G04: Handle Google OAuth callback
+  handleGoogleCallback: async (code: string): Promise<{ data: AuthResponse }> => {
+    const response = await apiClient.get(
+      `${API_ENDPOINTS.AUTH.GOOGLE_CALLBACK}?code=${code}`
+    );
+    return { data: response.data };
+  },
+
+  // Logout
+  logout: async (): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT);
+  },
 };

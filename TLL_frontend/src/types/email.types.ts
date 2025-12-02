@@ -1,22 +1,27 @@
 export interface Email {
   id: string;
+  threadId?: string; // Gmail thread ID
   from: {
     name: string;
     email: string;
     avatar?: string;
   };
   to: string[];
+  cc?: string[];
+  bcc?: string[];
   subject: string;
   preview: string;
   body: string;
   date: Date;
   read: boolean;
   starred: boolean;
-  folder: 'inbox' | 'sent' | 'drafts' | 'trash';
+  folder: 'inbox' | 'sent' | 'drafts' | 'trash' | 'spam' | 'important' | 'starred';
+  labelIds?: string[]; // Gmail labels
   attachments?: {
-    name: string;
-    size: string;
-    type: string;
+    id: string; // Gmail attachment ID
+    filename: string;
+    mimeType: string;
+    size: number; // bytes
   }[];
 }
 

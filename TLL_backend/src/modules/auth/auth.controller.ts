@@ -100,42 +100,52 @@ export class AuthController {
   }
 
   @Get('google/callback')
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Handle Google OAuth callback and exchange code for tokens' })
-  @ApiResponse({ status: 200, description: 'Successfully authenticated with Google' })
+  @ApiResponse({ status: 302, description: 'Redirects to frontend after successful authentication' })
   @ApiResponse({ status: 401, description: 'Invalid authorization code' })
   async googleOAuthCallback(
     @Query('code') code: string,
     @Query('state') state: string,
-    @Res({ passthrough: true }) res: Response,
+    @Res() res: Response,
   ) {
     if (!code) {
-      throw new UnauthorizedException('Authorization code is required');
+      // Redirect to frontend with error
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/login?error=missing_code`);
     }
 
-    const result = await this.authService.googleOAuthCallback(code);
+    try {
+      const result = await this.authService.googleOAuthCallback(code);
 
-    // Set access token in HTTP-only cookie
-    res.cookie('accessToken', result.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 1000, // 1 hour (adjust based on your JWT_EXPIRATION)
-    });
+      // Set access token in HTTP-only cookie (backup)
+      res.cookie('accessToken', result.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 1000, // 1 hour
+      });
 
-    // Set refresh token in HTTP-only cookie
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (adjust based on your JWT_REFRESH_EXPIRATION)
-    });
+      // Set refresh token in HTTP-only cookie (backup)
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
 
-    // Return user info (tokens are in cookies)
-    return {
-      user: result.user,
-      message: 'Authentication successful. Tokens are set in cookies.',
-    };
+      // Encode tokens in URL for frontend to capture
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const callbackUrl = `${frontendUrl}/auth/google/callback?` +
+        `accessToken=${encodeURIComponent(result.accessToken)}` +
+        `&refreshToken=${encodeURIComponent(result.refreshToken)}` +
+        `&user=${encodeURIComponent(JSON.stringify(result.user))}`;
+      
+      return res.redirect(callbackUrl);
+    } catch (error) {
+      // Redirect to frontend with error
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/login?error=auth_failed`);
+    }
   }
 
   @Post('refresh')
