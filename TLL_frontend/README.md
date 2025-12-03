@@ -2,6 +2,8 @@
 
 Modern React application với **complete email dashboard UI** và **advanced authentication system**, built với Vite + TypeScript + TailwindCSS.
 
+> 📖 **Security Documentation**: See [SECURITY.md](../SECURITY.md) for comprehensive security analysis and token storage justification.
+
 ## 🎯 Features Complete
 
 ### ✅ Phrase 1 - Authentication System
@@ -34,15 +36,34 @@ Modern React application với **complete email dashboard UI** và **advanced au
 - **Email Detail View** - Full email content, attachments, action buttons
 - **Search Functionality** - Real-time search across subject, sender, preview
 - **Responsive Design** - Desktop (3 columns) → Mobile (Stack navigation)
-- **Mock Data Service** - 50+ generated emails with realistic data
+- **Keyboard Navigation** - Gmail-style shortcuts (j/k, r, f, e, s, x)
 - **Loading States** - Skeleton loaders và smooth transitions
 - **Interactive Elements** - Mark as read, star emails, folder switching
+
+### ⌨️ Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Next email |
+| `k` / `↑` | Previous email |
+| `Enter` / `o` | Open selected email |
+| `r` | Reply to email |
+| `f` | Forward email |
+| `e` | Archive email |
+| `s` | Star/Unstar email |
+| `x` | Select/Deselect email |
+| `Delete` / `#` | Delete email |
+| `Escape` | Clear selection |
 
 ### 🛡️ Security Best Practices
 - Access token KHÔNG bao giờ lưu vào LocalStorage (tránh XSS)
 - Refresh token lưu LocalStorage để duy trì session
+- Google OAuth tokens stored server-side only
+- **Google token revocation on logout**
 - Protected route validation
 - Loading states khi check auth
+
+> 🔐 **Full Security Analysis**: See [SECURITY.md](../SECURITY.md) for detailed threat model, token storage justification, and security measures.
 
 ### 🏗️ Architecture
 

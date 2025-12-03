@@ -1,14 +1,19 @@
-import axios, { type AxiosInstance, type InternalAxiosRequestConfig, AxiosError } from 'axios';
-import { API_BASE_URL, API_ENDPOINTS, TOKEN_KEY } from '../config/constants';
-import { useAuthStore } from '../store/auth.store';
+import axios, {
+  type AxiosInstance,
+  type InternalAxiosRequestConfig,
+  AxiosError,
+} from "axios";
+import { API_BASE_URL, API_ENDPOINTS } from "../config/constants";
+import { useAuthStore } from "../store/auth.store";
 
 // Create axios instance
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   timeout: 10000,
+  withCredentials: true, // Important: Send cookies with requests
 });
 
 // ============================================
@@ -22,7 +27,10 @@ let failedQueue: Array<{
   reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: AxiosError | null, token: string | null = null) => {
+const processQueue = (
+  error: AxiosError | null,
+  token: string | null = null
+) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -47,11 +55,10 @@ const setAccessToken = (token: string | null): void => {
 // Logout helper
 const logout = (): void => {
   useAuthStore.getState().logout();
-  localStorage.removeItem(TOKEN_KEY.REFRESH);
-  
-  // Redirect to login
-  if (typeof window !== 'undefined') {
-    window.location.href = '/login';
+
+  // Redirect to login (cookies will be cleared by server on logout API call)
+  if (typeof window !== "undefined") {
+    window.location.href = "/login";
   }
 };
 
@@ -59,11 +66,11 @@ const logout = (): void => {
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = getAccessToken();
-    
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     return config;
   },
   (error) => {
@@ -77,7 +84,9 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+    };
 
     // Nếu không phải lỗi 401 hoặc không có config, reject ngay
     if (!originalRequest || error.response?.status !== 401) {
@@ -85,9 +94,11 @@ apiClient.interceptors.response.use(
     }
 
     // Check if error message contains Gmail-specific errors
-    const errorMessage = (error.response?.data as any)?.message || '';
-    if (errorMessage.includes('Gmail account not connected') || 
-        errorMessage.includes('Please connect your Gmail account')) {
+    const errorMessage = (error.response?.data as any)?.message || "";
+    if (
+      errorMessage.includes("Gmail account not connected") ||
+      errorMessage.includes("Please connect your Gmail account")
+    ) {
       // Don't retry, let component show connection banner
       return Promise.reject(error);
     }
@@ -118,32 +129,25 @@ apiClient.interceptors.response.use(
     originalRequest._retry = true;
     isRefreshing = true;
 
-    const refreshToken = localStorage.getItem(TOKEN_KEY.REFRESH);
-
-    if (!refreshToken) {
-      logout();
-      return Promise.reject(error);
-    }
+    // Refresh token is stored in HTTP-only cookie, sent automatically with withCredentials
 
     try {
-      // Call refresh token API
+      // Call refresh token API - cookie will be sent automatically
       const response = await axios.post(
         `${API_BASE_URL}${API_ENDPOINTS.AUTH.REFRESH}`,
-        { refreshToken },
+        {},
         {
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
+          withCredentials: true, // Send cookies
         }
       );
 
-      const { accessToken, refreshToken: newRefreshToken } = response.data;
+      const { accessToken } = response.data;
 
-      // Update tokens
+      // Update access token in memory
       setAccessToken(accessToken);
-      if (newRefreshToken) {
-        localStorage.setItem(TOKEN_KEY.REFRESH, newRefreshToken);
-      }
 
       // Process queue
       processQueue(null, accessToken);

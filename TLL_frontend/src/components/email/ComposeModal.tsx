@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { X, Send, Loader2, Minus } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { emailService } from '../../services/email.service';
+import React, { useState } from "react";
+import { X, Send, Loader2, Minus } from "lucide-react";
+import toast from "react-hot-toast";
+import { emailService } from "../../services/email.service";
 
 interface ComposeModalProps {
   onClose: () => void;
@@ -26,18 +26,24 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
   replyTo,
   forwardEmail,
 }) => {
-  const [to, setTo] = useState(replyTo ? replyTo.from.email : '');
-  const [cc, setCc] = useState('');
-  const [bcc, setBcc] = useState('');
+  const [to, setTo] = useState(replyTo ? replyTo.from.email : "");
+  const [cc, setCc] = useState("");
+  const [bcc, setBcc] = useState("");
   const [subject, setSubject] = useState(
-    replyTo ? `Re: ${replyTo.subject}` : forwardEmail ? `Fwd: ${forwardEmail.subject}` : ''
+    replyTo
+      ? `Re: ${replyTo.subject}`
+      : forwardEmail
+      ? `Fwd: ${forwardEmail.subject}`
+      : ""
   );
   const [body, setBody] = useState(
     replyTo
-      ? `\n\n---\nOn ${new Date().toLocaleDateString()}, ${replyTo.from.name} wrote:\n${replyTo.body}`
+      ? `\n\n---\nOn ${new Date().toLocaleDateString()}, ${
+          replyTo.from.name
+        } wrote:\n${replyTo.body}`
       : forwardEmail
       ? `\n\n---\nForwarded message:\n${forwardEmail.body}`
-      : ''
+      : ""
   );
   const [isSending, setIsSending] = useState(false);
   const [showCc, setShowCc] = useState(false);
@@ -47,39 +53,42 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
     e.preventDefault();
 
     if (!to.trim()) {
-      toast.error('Please enter at least one recipient');
+      toast.error("Please enter at least one recipient");
       return;
     }
 
     setIsSending(true);
     try {
       const toEmails = to
-        .split(',')
+        .split(",")
         .map((e) => e.trim())
         .filter(Boolean);
       const ccEmails = cc
-        .split(',')
+        .split(",")
         .map((e) => e.trim())
         .filter(Boolean);
       const bccEmails = bcc
-        .split(',')
+        .split(",")
         .map((e) => e.trim())
         .filter(Boolean);
 
       await emailService.sendEmail({
         to: toEmails,
-        subject: subject || '(No subject)',
+        subject: subject || "(No subject)",
         body,
         cc: ccEmails.length > 0 ? ccEmails : undefined,
         bcc: bccEmails.length > 0 ? bccEmails : undefined,
       });
 
-      toast.success('Email sent successfully!');
+      toast.success("Email sent successfully!");
       onSent?.();
       onClose();
     } catch (error: any) {
-      console.error('Failed to send email:', error);
-      toast.error(error.response?.data?.message || 'Failed to send email. Please try again.');
+      console.error("Failed to send email:", error);
+      toast.error(
+        error.response?.data?.message ||
+          "Failed to send email. Please try again."
+      );
     } finally {
       setIsSending(false);
     }
@@ -102,7 +111,11 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold">
-                {replyTo ? 'Reply to Email' : forwardEmail ? 'Forward Email' : 'New Message'}
+                {replyTo
+                  ? "Reply to Email"
+                  : forwardEmail
+                  ? "Forward Email"
+                  : "New Message"}
               </h2>
               {replyTo && (
                 <p className="text-xs text-blue-100">to {replyTo.from.name}</p>
@@ -119,7 +132,10 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col max-h-[calc(90vh-80px)]">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col max-h-[calc(90vh-80px)]"
+        >
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {/* To Field */}
             <div>
@@ -156,19 +172,23 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
                 required
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
-              <p className="text-xs text-gray-500 mt-1">Separate multiple emails with commas</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Separate multiple emails with commas
+              </p>
             </div>
 
             {/* Cc Field */}
             {showCc && (
               <div className="animate-slideUp">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-semibold text-gray-700">Cc</label>
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Cc
+                  </label>
                   <button
                     type="button"
                     onClick={() => {
                       setShowCc(false);
-                      setCc('');
+                      setCc("");
                     }}
                     className="text-xs text-gray-500 hover:text-gray-700"
                   >
@@ -189,12 +209,14 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
             {showBcc && (
               <div className="animate-slideUp">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-semibold text-gray-700">Bcc</label>
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Bcc
+                  </label>
                   <button
                     type="button"
                     onClick={() => {
                       setShowBcc(false);
-                      setBcc('');
+                      setBcc("");
                     }}
                     className="text-xs text-gray-500 hover:text-gray-700"
                   >
@@ -213,7 +235,9 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
 
             {/* Subject Field */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Subject</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Subject
+              </label>
               <input
                 type="text"
                 value={subject}
@@ -225,7 +249,9 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
 
             {/* Body Field */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Message</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Message
+              </label>
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -236,21 +262,23 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
             </div>
 
             {/* Forward Info */}
-            {forwardEmail?.attachments && forwardEmail.attachments.length > 0 && (
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg animate-slideUp">
-                <p className="text-sm text-blue-900 font-medium mb-2">
-                  📎 {forwardEmail.attachments.length} attachment
-                  {forwardEmail.attachments.length > 1 ? 's' : ''} will be forwarded
-                </p>
-                <div className="space-y-1">
-                  {forwardEmail.attachments.map((att, idx) => (
-                    <p key={idx} className="text-xs text-blue-700">
-                      • {att.filename} ({(att.size / 1024).toFixed(1)} KB)
-                    </p>
-                  ))}
+            {forwardEmail?.attachments &&
+              forwardEmail.attachments.length > 0 && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg animate-slideUp">
+                  <p className="text-sm text-blue-900 font-medium mb-2">
+                    📎 {forwardEmail.attachments.length} attachment
+                    {forwardEmail.attachments.length > 1 ? "s" : ""} will be
+                    forwarded
+                  </p>
+                  <div className="space-y-1">
+                    {forwardEmail.attachments.map((att, idx) => (
+                      <p key={idx} className="text-xs text-blue-700">
+                        • {att.filename} ({att.size})
+                      </p>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
 
           {/* Footer */}

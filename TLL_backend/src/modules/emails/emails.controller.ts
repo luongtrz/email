@@ -18,6 +18,8 @@ import { GmailAuthGuard } from './guards/gmail-auth.guard';
 import { GetEmailsDto } from './dto/get-emails.dto';
 import { SendEmailDto } from './dto/send-email.dto';
 import { ModifyEmailDto } from './dto/modify-email.dto';
+import { ReplyEmailDto } from './dto/reply-email.dto';
+import { ForwardEmailDto } from './dto/forward-email.dto';
 import { Email } from './interfaces/email.interface';
 import { GetDetailEmailsDto } from './dto/get-detail-emails.dto';
 
@@ -56,7 +58,10 @@ export class EmailsController {
 
   @Get('emails/list')
   @ApiOperation({ summary: 'Get all emails with filters (legacy)' })
-  async getEmails(@Request() req, @Query() dto: GetEmailsDto): Promise<{ emails: Email[]; pagination: any }> {
+  async getEmails(
+    @Request() req,
+    @Query() dto: GetEmailsDto,
+  ): Promise<{ emails: Email[]; pagination: any }> {
     return this.emailsService.getEmails(req.user.id, dto);
   }
 
@@ -67,13 +72,35 @@ export class EmailsController {
   }
 
   @Post('emails/:id/modify')
-  @ApiOperation({ summary: 'Modify email (mark read/unread, star, archive, etc.)' })
+  @ApiOperation({
+    summary: 'Modify email (mark read/unread, star, archive, etc.)',
+  })
   async modifyEmail(
     @Request() req,
     @Param('id') id: string,
     @Body() dto: ModifyEmailDto,
   ) {
     return this.emailsService.modifyEmail(req.user.id, id, dto);
+  }
+
+  @Post('emails/:id/reply')
+  @ApiOperation({ summary: 'Reply to an email' })
+  async replyEmail(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: ReplyEmailDto,
+  ) {
+    return this.emailsService.replyEmail(req.user.id, id, dto);
+  }
+
+  @Post('emails/:id/forward')
+  @ApiOperation({ summary: 'Forward an email' })
+  async forwardEmail(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: ForwardEmailDto,
+  ) {
+    return this.emailsService.forwardEmail(req.user.id, id, dto);
   }
 
   @Get('attachments/:id')
@@ -97,8 +124,14 @@ export class EmailsController {
     );
 
     // Set appropriate headers for file download
-    res.setHeader('Content-Type', attachment.contentType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
+    res.setHeader(
+      'Content-Type',
+      attachment.contentType || 'application/octet-stream',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${attachment.filename}"`,
+    );
     res.setHeader('Content-Length', attachment.size);
 
     return res.send(attachment.data);

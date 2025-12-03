@@ -28,5 +28,28 @@ export class ModifyEmailDto {
   @IsBoolean()
   @IsOptional()
   archive?: boolean;
-}
 
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Move email to trash',
+  })
+  @IsBoolean()
+  @IsOptional()
+  delete?: boolean;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Permanently delete email (cannot be undone)',
+  })
+  @IsBoolean()
+  @IsOptional()
+  permanentDelete?: boolean;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Unstar the email',
+  })
+  @IsBoolean()
+  @IsOptional()
+  unstar?: boolean;
+}

@@ -1,6 +1,6 @@
-import type { Email, Folder } from '../types/email.types';
-import apiClient from '../lib/axios';
-import { API_ENDPOINTS } from '../config/constants';
+import type { Email, Folder } from "../types/email.types";
+import apiClient from "../lib/axios";
+import { API_ENDPOINTS } from "../config/constants";
 
 // Real API integration
 export const emailService = {
@@ -12,10 +12,10 @@ export const emailService = {
   },
 
   // Get emails with filters
-  getEmails: async (filters?: { 
-    folder?: string; 
-    search?: string; 
-    page?: number; 
+  getEmails: async (filters?: {
+    folder?: string;
+    search?: string;
+    page?: number;
     limit?: number;
   }): Promise<{ emails: Email[]; pagination: any }> => {
     const params: any = {};
@@ -44,7 +44,7 @@ export const emailService = {
 
   // Get emails by folder (alias for backwards compatibility)
   getEmailsByFolder: async (
-    folderId: string, 
+    folderId: string,
     filters?: { search?: string; page?: number; limit?: number }
   ): Promise<{ emails: Email[]; pagination: any }> => {
     return emailService.getEmails({ ...filters, folder: folderId });
@@ -56,20 +56,23 @@ export const emailService = {
       const response = await apiClient.get(API_ENDPOINTS.EMAILS.DETAIL(id));
       return response.data;
     } catch (error) {
-      console.error('Failed to fetch email:', error);
+      console.error("Failed to fetch email:", error);
       return null;
     }
   },
 
   // Modify email (mark read/unread, star, archive, delete)
-  modifyEmail: async (id: string, action: {
-    markAsRead?: boolean;
-    markUnread?: boolean;
-    star?: boolean;
-    unstar?: boolean;
-    archive?: boolean;
-    delete?: boolean;
-  }): Promise<void> => {
+  modifyEmail: async (
+    id: string,
+    action: {
+      markAsRead?: boolean;
+      markUnread?: boolean;
+      star?: boolean;
+      unstar?: boolean;
+      archive?: boolean;
+      delete?: boolean;
+    }
+  ): Promise<void> => {
     await apiClient.post(API_ENDPOINTS.EMAILS.MODIFY(id), action);
   },
 
@@ -95,11 +98,40 @@ export const emailService = {
     await apiClient.post(API_ENDPOINTS.EMAILS.SEND, data);
   },
 
+  // Reply to an email
+  replyEmail: async (
+    emailId: string,
+    data: {
+      body: string;
+      cc?: string[];
+      bcc?: string[];
+      replyAll?: boolean;
+    }
+  ): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.EMAILS.REPLY(emailId), data);
+  },
+
+  // Forward an email
+  forwardEmail: async (
+    emailId: string,
+    data: {
+      to: string[];
+      body?: string;
+      cc?: string[];
+      bcc?: string[];
+    }
+  ): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.EMAILS.FORWARD(emailId), data);
+  },
+
   // Download attachment
-  downloadAttachment: async (messageId: string, attachmentId: string): Promise<Blob> => {
+  downloadAttachment: async (
+    messageId: string,
+    attachmentId: string
+  ): Promise<Blob> => {
     const response = await apiClient.get(
       API_ENDPOINTS.EMAILS.ATTACHMENT(attachmentId, messageId),
-      { responseType: 'blob' }
+      { responseType: "blob" }
     );
     return response.data;
   },

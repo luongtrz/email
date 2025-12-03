@@ -36,7 +36,9 @@ export class GmailParserService {
   /**
    * Parse email headers
    */
-  private parseHeaders(headers: gmail_v1.Schema$MessagePartHeader[]): Record<string, string> {
+  private parseHeaders(
+    headers: gmail_v1.Schema$MessagePartHeader[],
+  ): Record<string, string> {
     const result: Record<string, string> = {};
     headers.forEach((header) => {
       if (header.name && header.value) {
@@ -168,7 +170,10 @@ export class GmailParserService {
    */
   private extractPreview(body: string, maxLength: number = 150): string {
     // Remove HTML tags
-    const text = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const text = body
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
     if (text.length <= maxLength) {
       return text;
     }
@@ -208,9 +213,25 @@ export class GmailParserService {
     cc?: string[];
     bcc?: string[];
     replyTo?: string;
-    attachments?: Array<{ filename: string; content: Buffer; contentType: string }>;
+    attachments?: Array<{
+      filename: string;
+      content: Buffer;
+      contentType: string;
+    }>;
+    references?: string;
+    inReplyTo?: string;
   }): string {
-    const { to, subject, body, cc, bcc, replyTo, attachments } = options;
+    const {
+      to,
+      subject,
+      body,
+      cc,
+      bcc,
+      replyTo,
+      attachments,
+      references,
+      inReplyTo,
+    } = options;
 
     const lines: string[] = [];
     lines.push(`To: ${to.join(', ')}`);
@@ -225,14 +246,23 @@ export class GmailParserService {
     if (replyTo) {
       lines.push(`Reply-To: ${replyTo}`);
     }
+    if (inReplyTo) {
+      lines.push(`In-Reply-To: <${inReplyTo}>`);
+    }
+    if (references) {
+      lines.push(`References: <${references}>`);
+    }
 
     // Determine if body is HTML
-    const isHtml = body.includes('<html') || body.includes('<div') || body.includes('<p>');
+    const isHtml =
+      body.includes('<html') || body.includes('<div') || body.includes('<p>');
     const contentType = isHtml ? 'text/html' : 'text/plain';
 
     if (attachments && attachments.length > 0) {
       // Multipart message with attachments
-      const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const boundary = `----=_Part_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(7)}`;
       lines.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
       lines.push('');
       lines.push(`--${boundary}`);
@@ -244,9 +274,13 @@ export class GmailParserService {
       // Add attachments
       for (const attachment of attachments) {
         lines.push(`--${boundary}`);
-        lines.push(`Content-Type: ${attachment.contentType}; name="${attachment.filename}"`);
+        lines.push(
+          `Content-Type: ${attachment.contentType}; name="${attachment.filename}"`,
+        );
         lines.push('Content-Transfer-Encoding: base64');
-        lines.push(`Content-Disposition: attachment; filename="${attachment.filename}"`);
+        lines.push(
+          `Content-Disposition: attachment; filename="${attachment.filename}"`,
+        );
         lines.push('');
         lines.push(attachment.content.toString('base64'));
       }
@@ -264,4 +298,3 @@ export class GmailParserService {
     return Buffer.from(raw).toString('base64url');
   }
 }
-
