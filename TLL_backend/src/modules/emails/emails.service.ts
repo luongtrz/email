@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { GetEmailsDto } from './dto/get-emails.dto';
 import { SendEmailDto } from './dto/send-email.dto';
 import { ModifyEmailDto } from './dto/modify-email.dto';
@@ -42,7 +46,12 @@ export class EmailsService {
       { id: 'drafts', name: 'Drafts', icon: 'drafts', color: '#fbbc04' },
       { id: 'trash', name: 'Trash', icon: 'delete', color: '#ea4335' },
       { id: 'spam', name: 'Spam', icon: 'report', color: '#ea4335' },
-      { id: 'important', name: 'Important', icon: 'label_important', color: '#fbbc04' },
+      {
+        id: 'important',
+        name: 'Important',
+        icon: 'label_important',
+        color: '#fbbc04',
+      },
       { id: 'starred', name: 'Starred', icon: 'star', color: '#fbbc04' },
     ];
 
@@ -64,7 +73,10 @@ export class EmailsService {
             count,
           };
         } catch (error) {
-          console.warn(`Failed to get count for label ${labelId}:`, error.message);
+          console.warn(
+            `Failed to get count for label ${labelId}:`,
+            error.message,
+          );
           return { ...mailbox, count: 0 };
         }
       }),
@@ -103,7 +115,9 @@ export class EmailsService {
       maxResults,
     });
 
-    const messageIds = (result.messages || []).map((msg) => msg.id || '').filter(Boolean);
+    const messageIds = (result.messages || [])
+      .map((msg) => msg.id || '')
+      .filter(Boolean);
 
     if (messageIds.length === 0) {
       return {
@@ -119,7 +133,9 @@ export class EmailsService {
 
     // Get full message details
     const messages = await this.gmailApiService.getMessages(userId, messageIds);
-    const emails = messages.map((msg) => this.gmailParserService.parseMessage(msg));
+    const emails = messages.map((msg) =>
+      this.gmailParserService.parseMessage(msg),
+    );
 
     // Sort by date descending
     emails.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -134,7 +150,9 @@ export class EmailsService {
         total: result.resultSizeEstimate || emails.length,
         page,
         limit,
-        totalPages: Math.ceil((result.resultSizeEstimate || emails.length) / limit),
+        totalPages: Math.ceil(
+          (result.resultSizeEstimate || emails.length) / limit,
+        ),
         nextPageToken: result.nextPageToken,
       },
     };
@@ -147,7 +165,12 @@ export class EmailsService {
 
       // Mark as read if unread
       if (!email.read) {
-        await this.gmailApiService.modifyMessage(userId, emailId, [], ['UNREAD']);
+        await this.gmailApiService.modifyMessage(
+          userId,
+          emailId,
+          [],
+          ['UNREAD'],
+        );
       }
 
       return email;
@@ -163,11 +186,17 @@ export class EmailsService {
     const { to, subject, body, cc, bcc, replyTo } = dto;
 
     try {
-      const result = await this.gmailApiService.sendMessage(userId, to, subject, body, {
-        cc,
-        bcc,
-        replyTo,
-      });
+      const result = await this.gmailApiService.sendMessage(
+        userId,
+        to,
+        subject,
+        body,
+        {
+          cc,
+          bcc,
+          replyTo,
+        },
+      );
 
       return {
         message: 'Email sent successfully',
@@ -180,7 +209,53 @@ export class EmailsService {
   }
 
   async modifyEmail(userId: string, emailId: string, dto: ModifyEmailDto) {
-    const { addLabels, removeLabels, markAsRead, star, archive } = dto;
+    const {
+      addLabels,
+      removeLabels,
+      markAsRead,
+      star,
+      unstar,
+      archive,
+      delete: moveToTrash,
+      permanentDelete,
+    } = dto;
+
+    // Handle permanent delete first (cannot be undone)
+    if (permanentDelete) {
+      try {
+        await this.gmailApiService.deleteMessage(userId, emailId);
+        return {
+          message: 'Email permanently deleted',
+          messageId: emailId,
+        };
+      } catch (error) {
+        if (error.status === 404) {
+          throw new NotFoundException('Email not found');
+        }
+        throw new BadRequestException(
+          'Failed to delete email: ' + error.message,
+        );
+      }
+    }
+
+    // Handle move to trash
+    if (moveToTrash) {
+      try {
+        const result = await this.gmailApiService.trashMessage(userId, emailId);
+        return {
+          message: 'Email moved to trash',
+          messageId: result.id,
+          labelIds: result.labelIds,
+        };
+      } catch (error) {
+        if (error.status === 404) {
+          throw new NotFoundException('Email not found');
+        }
+        throw new BadRequestException(
+          'Failed to move email to trash: ' + error.message,
+        );
+      }
+    }
 
     const labelsToAdd: string[] = addLabels || [];
     const labelsToRemove: string[] = removeLabels || [];
@@ -200,6 +275,10 @@ export class EmailsService {
       } else {
         labelsToRemove.push('STARRED');
       }
+    }
+
+    if (unstar) {
+      labelsToRemove.push('STARRED');
     }
 
     if (archive !== undefined) {
@@ -235,7 +314,9 @@ export class EmailsService {
     try {
       // Get message to find attachment details
       const message = await this.gmailApiService.getMessage(userId, messageId);
-      const attachments = this.gmailParserService.parseAttachments(message.payload);
+      const attachments = this.gmailParserService.parseAttachments(
+        message.payload,
+      );
 
       const attachmentInfo = attachments.find((att) => att.id === attachmentId);
       if (!attachmentInfo) {
@@ -243,7 +324,11 @@ export class EmailsService {
       }
 
       // Get attachment data
-      const attachment = await this.gmailApiService.getAttachment(userId, messageId, attachmentId);
+      const attachment = await this.gmailApiService.getAttachment(
+        userId,
+        messageId,
+        attachmentId,
+      );
       const data = Buffer.from(attachment.data || '', 'base64');
 
       return {
@@ -256,7 +341,190 @@ export class EmailsService {
       if (error.status === 404 || error instanceof NotFoundException) {
         throw new NotFoundException('Attachment not found');
       }
-      throw new BadRequestException('Failed to get attachment: ' + error.message);
+      throw new BadRequestException(
+        'Failed to get attachment: ' + error.message,
+      );
+    }
+  }
+
+  // Reply to an email
+  async replyEmail(
+    userId: string,
+    emailId: string,
+    dto: { body: string; cc?: string[]; bcc?: string[]; replyAll?: boolean },
+  ) {
+    try {
+      // Get the original email
+      const originalMessage = await this.gmailApiService.getMessage(
+        userId,
+        emailId,
+      );
+      const originalEmail =
+        this.gmailParserService.parseMessage(originalMessage);
+
+      // Determine recipients
+      const toRecipients: string[] = [originalEmail.from.email];
+      let ccRecipients: string[] = dto.cc || [];
+
+      // If reply all, include original CC and To recipients (excluding self)
+      if (dto.replyAll) {
+        const profile = await this.gmailApiService.getProfile(userId);
+        const userEmail = profile.emailAddress?.toLowerCase();
+
+        // Add original To recipients (excluding self)
+        originalEmail.to.forEach((recipient: string) => {
+          if (
+            recipient.toLowerCase() !== userEmail &&
+            !toRecipients.includes(recipient)
+          ) {
+            toRecipients.push(recipient);
+          }
+        });
+
+        // Add original CC recipients (excluding self)
+        originalEmail.cc?.forEach((recipient: string) => {
+          if (
+            recipient.toLowerCase() !== userEmail &&
+            !ccRecipients.includes(recipient)
+          ) {
+            ccRecipients.push(recipient);
+          }
+        });
+      }
+
+      // Format reply body with quoted original message
+      const replyBody = `
+${dto.body}
+
+<br/><br/>
+<div style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 10px; color: #666;">
+  <p>On ${new Date(originalEmail.date).toLocaleString()}, ${
+        originalEmail.from.name
+      } &lt;${originalEmail.from.email}&gt; wrote:</p>
+  ${originalEmail.body}
+</div>
+      `.trim();
+
+      // Send the reply
+      const result = await this.gmailApiService.sendMessage(
+        userId,
+        toRecipients,
+        `Re: ${originalEmail.subject.replace(/^Re:\s*/i, '')}`,
+        replyBody,
+        {
+          cc: ccRecipients.length > 0 ? ccRecipients : undefined,
+          bcc: dto.bcc,
+          replyTo: originalEmail.from.email,
+          threadId: originalEmail.threadId,
+          references: emailId,
+          inReplyTo: emailId,
+        },
+      );
+
+      return {
+        message: 'Reply sent successfully',
+        messageId: result.id,
+        threadId: result.threadId,
+      };
+    } catch (error) {
+      if (error.status === 404) {
+        throw new NotFoundException('Original email not found');
+      }
+      throw new BadRequestException('Failed to send reply: ' + error.message);
+    }
+  }
+
+  // Forward an email
+  async forwardEmail(
+    userId: string,
+    emailId: string,
+    dto: { to: string[]; body?: string; cc?: string[]; bcc?: string[] },
+  ) {
+    try {
+      // Get the original email
+      const originalMessage = await this.gmailApiService.getMessage(
+        userId,
+        emailId,
+      );
+      const originalEmail =
+        this.gmailParserService.parseMessage(originalMessage);
+
+      // Format forward body with original message
+      const forwardBody = `
+${dto.body || ''}
+
+<br/><br/>
+<div style="border-top: 1px solid #ccc; padding-top: 10px; margin-top: 10px;">
+  <p><strong>---------- Forwarded message ----------</strong></p>
+  <p><strong>From:</strong> ${originalEmail.from.name} &lt;${
+        originalEmail.from.email
+      }&gt;</p>
+  <p><strong>Date:</strong> ${new Date(originalEmail.date).toLocaleString()}</p>
+  <p><strong>Subject:</strong> ${originalEmail.subject}</p>
+  <p><strong>To:</strong> ${originalEmail.to.join(', ')}</p>
+  ${
+    originalEmail.cc?.length > 0
+      ? `<p><strong>Cc:</strong> ${originalEmail.cc.join(', ')}</p>`
+      : ''
+  }
+  <br/>
+  ${originalEmail.body}
+</div>
+      `.trim();
+
+      // Get attachments from original email to forward
+      const attachments = this.gmailParserService.parseAttachments(
+        originalMessage.payload,
+      );
+      const attachmentData: Array<{
+        filename: string;
+        content: Buffer;
+        contentType: string;
+      }> = [];
+
+      // Fetch and include original attachments
+      for (const att of attachments) {
+        try {
+          const attachmentResult = await this.gmailApiService.getAttachment(
+            userId,
+            emailId,
+            att.id,
+          );
+          attachmentData.push({
+            filename: att.name,
+            content: Buffer.from(attachmentResult.data || '', 'base64'),
+            contentType: att.type,
+          });
+        } catch (err) {
+          console.warn(`Failed to fetch attachment ${att.name}:`, err.message);
+        }
+      }
+
+      // Send the forwarded email
+      const result = await this.gmailApiService.sendMessage(
+        userId,
+        dto.to,
+        `Fwd: ${originalEmail.subject.replace(/^Fwd:\s*/i, '')}`,
+        forwardBody,
+        {
+          cc: dto.cc,
+          bcc: dto.bcc,
+          attachments: attachmentData.length > 0 ? attachmentData : undefined,
+        },
+      );
+
+      return {
+        message: 'Email forwarded successfully',
+        messageId: result.id,
+        threadId: result.threadId,
+      };
+    } catch (error) {
+      if (error.status === 404) {
+        throw new NotFoundException('Original email not found');
+      }
+      throw new BadRequestException(
+        'Failed to forward email: ' + error.message,
+      );
     }
   }
 

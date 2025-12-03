@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import type { User } from '../types/auth.types';
+import { create } from "zustand";
+import type { User } from "../types/auth.types";
 
 interface AuthState {
   // Access token lưu trong MEMORY (không persist)
@@ -19,7 +19,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   user: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: false,
 
   setAccessToken: (token) =>
     set({
@@ -33,8 +33,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: !!user,
     }),
 
-  setLoading: (loading) =>
-    set({ isLoading: loading }),
+  setLoading: (loading) => set({ isLoading: loading }),
 
   logout: () =>
     set({

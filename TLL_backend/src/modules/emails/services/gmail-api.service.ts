@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { google } from 'googleapis';
 import { GoogleTokenService } from '../../auth/services/google-token.service';
 import { GmailParserService } from './gmail-parser.service';
@@ -14,7 +18,9 @@ export class GmailApiService {
    * Get Gmail client for a user
    */
   private async getGmailClient(userId: string) {
-    const accessToken = await this.googleTokenService.getValidAccessToken(userId);
+    const accessToken = await this.googleTokenService.getValidAccessToken(
+      userId,
+    );
     const oauth2Client = this.googleTokenService.getOAuth2Client();
     oauth2Client.setCredentials({ access_token: accessToken });
     return google.gmail({ version: 'v1', auth: oauth2Client });
@@ -43,7 +49,10 @@ export class GmailApiService {
    */
   async getLabel(userId: string, labelId: string) {
     const gmail = await this.getGmailClient(userId);
-    const response = await gmail.users.labels.get({ userId: 'me', id: labelId });
+    const response = await gmail.users.labels.get({
+      userId: 'me',
+      id: labelId,
+    });
     return response.data;
   }
 
@@ -119,7 +128,14 @@ export class GmailApiService {
       cc?: string[];
       bcc?: string[];
       replyTo?: string;
-      attachments?: Array<{ filename: string; content: Buffer; contentType: string }>;
+      attachments?: Array<{
+        filename: string;
+        content: Buffer;
+        contentType: string;
+      }>;
+      threadId?: string;
+      references?: string;
+      inReplyTo?: string;
     } = {},
   ) {
     const gmail = await this.getGmailClient(userId);
@@ -134,6 +150,7 @@ export class GmailApiService {
       userId: 'me',
       requestBody: {
         raw,
+        threadId: options.threadId,
       },
     });
 
@@ -189,5 +206,40 @@ export class GmailApiService {
       pageToken,
     });
   }
-}
 
+  /**
+   * Move message to trash
+   */
+  async trashMessage(userId: string, messageId: string) {
+    const gmail = await this.getGmailClient(userId);
+    const response = await gmail.users.messages.trash({
+      userId: 'me',
+      id: messageId,
+    });
+    return response.data;
+  }
+
+  /**
+   * Permanently delete a message (cannot be undone)
+   */
+  async deleteMessage(userId: string, messageId: string) {
+    const gmail = await this.getGmailClient(userId);
+    await gmail.users.messages.delete({
+      userId: 'me',
+      id: messageId,
+    });
+    return { success: true };
+  }
+
+  /**
+   * Remove message from trash (untrash)
+   */
+  async untrashMessage(userId: string, messageId: string) {
+    const gmail = await this.getGmailClient(userId);
+    const response = await gmail.users.messages.untrash({
+      userId: 'me',
+      id: messageId,
+    });
+    return response.data;
+  }
+}

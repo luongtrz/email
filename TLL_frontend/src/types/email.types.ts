@@ -15,13 +15,20 @@ export interface Email {
   date: Date;
   read: boolean;
   starred: boolean;
-  folder: 'inbox' | 'sent' | 'drafts' | 'trash' | 'spam' | 'important' | 'starred';
+  folder:
+    | "inbox"
+    | "sent"
+    | "drafts"
+    | "trash"
+    | "spam"
+    | "important"
+    | "starred";
   labelIds?: string[]; // Gmail labels
   attachments?: {
     id: string; // Gmail attachment ID
     filename: string;
     mimeType: string;
-    size: number; // bytes
+    size: string;
   }[];
 }
 

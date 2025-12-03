@@ -94,7 +94,7 @@ export class AuthService {
       const response = await fetch(
         `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${googleToken}`,
       );
-      
+
       if (!response.ok) {
         throw new UnauthorizedException('Invalid Google token');
       }
@@ -163,7 +163,34 @@ export class AuthService {
   }
 
   async logout(userId: string) {
-    await this.userRepository.update(userId, { refreshToken: null });
+    // Get user to retrieve Google tokens for revocation
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (user) {
+      // Revoke Google OAuth tokens if they exist
+      if (user.googleAccessToken || user.googleRefreshToken) {
+        try {
+          await this.googleTokenService.revokeTokens(
+            user.googleAccessToken,
+            user.googleRefreshToken,
+          );
+        } catch (error) {
+          // Log but don't fail logout if revocation fails
+          console.warn('Failed to revoke Google tokens:', error.message);
+        }
+      }
+
+      // Clear all tokens from database
+      await this.userRepository.update(userId, {
+        refreshToken: null,
+        googleAccessToken: null,
+        googleRefreshToken: null,
+        googleTokenExpiry: null,
+      });
+    }
+
     return { message: 'Logged out successfully' };
   }
 
@@ -225,7 +252,9 @@ export class AuthService {
       };
     } catch (error) {
       console.error('Error generating tokens:', error);
-      throw new UnauthorizedException('Failed to generate authentication tokens: ' + error.message);
+      throw new UnauthorizedException(
+        'Failed to generate authentication tokens: ' + error.message,
+      );
     }
   }
 

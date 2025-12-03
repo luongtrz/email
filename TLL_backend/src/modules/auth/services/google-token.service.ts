@@ -31,7 +31,9 @@ export class GoogleTokenService {
     });
 
     if (!user || !user.googleRefreshToken) {
-      throw new UnauthorizedException('Gmail account not connected. Please connect your Gmail account.');
+      throw new UnauthorizedException(
+        'Gmail account not connected. Please connect your Gmail account.',
+      );
     }
 
     // Check if token is expired or will expire in the next 5 minutes
@@ -80,7 +82,8 @@ export class GoogleTokenService {
 
       await this.userRepository.update(userId, {
         googleAccessToken: credentials.access_token,
-        googleRefreshToken: credentials.refresh_token || user.googleRefreshToken,
+        googleRefreshToken:
+          credentials.refresh_token || user.googleRefreshToken,
         googleTokenExpiry: expiryDate,
       });
     } catch (error) {
@@ -90,7 +93,30 @@ export class GoogleTokenService {
         googleRefreshToken: null,
         googleTokenExpiry: null,
       });
-      throw new UnauthorizedException('Gmail access expired. Please reconnect your Gmail account.');
+      throw new UnauthorizedException(
+        'Gmail access expired. Please reconnect your Gmail account.',
+      );
+    }
+  }
+
+  /**
+   * Revoke Google OAuth tokens
+   * This should be called during logout to properly invalidate tokens
+   */
+  async revokeTokens(
+    accessToken?: string,
+    refreshToken?: string,
+  ): Promise<void> {
+    const tokensToRevoke = [accessToken, refreshToken].filter(Boolean);
+
+    for (const token of tokensToRevoke) {
+      try {
+        await this.oauth2Client.revokeToken(token);
+      } catch (error) {
+        // Google may return error if token is already invalid/expired
+        // Log but continue with other tokens
+        console.warn(`Failed to revoke token: ${error.message}`);
+      }
     }
   }
 
@@ -113,7 +139,7 @@ export class GoogleTokenService {
       // Get user info - prefer ID token (works with Gmail scopes), fallback to userinfo endpoint
       this.oauth2Client.setCredentials(tokens);
       let userInfo: any;
-      
+
       // Try ID token first (works even with just Gmail scopes)
       if (tokens.id_token) {
         try {
@@ -126,18 +152,24 @@ export class GoogleTokenService {
             userInfo = idTokenPayload;
           }
         } catch (idTokenError) {
-          console.warn('ID token verification failed, trying userinfo endpoint:', idTokenError.message);
+          console.warn(
+            'ID token verification failed, trying userinfo endpoint:',
+            idTokenError.message,
+          );
         }
       }
 
       // Fallback to userinfo endpoint if ID token didn't work
       if (!userInfo || !userInfo.email) {
         try {
-          const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-            headers: {
-              Authorization: `Bearer ${tokens.access_token}`,
+          const response = await fetch(
+            'https://www.googleapis.com/oauth2/v2/userinfo',
+            {
+              headers: {
+                Authorization: `Bearer ${tokens.access_token}`,
+              },
             },
-          });
+          );
 
           if (response.ok) {
             const userinfoData = await response.json();
@@ -145,7 +177,9 @@ export class GoogleTokenService {
               userInfo = userinfoData;
             }
           } else {
-            console.warn(`Userinfo API returned ${response.status}: ${response.statusText}`);
+            console.warn(
+              `Userinfo API returned ${response.status}: ${response.statusText}`,
+            );
           }
         } catch (userinfoError) {
           console.warn('Userinfo endpoint failed:', userinfoError.message);
@@ -154,7 +188,9 @@ export class GoogleTokenService {
 
       // If still no email, throw error
       if (!userInfo || !userInfo.email) {
-        throw new Error('User email not found in Google response. The OAuth token may not include email scope.');
+        throw new Error(
+          'User email not found in Google response. The OAuth token may not include email scope.',
+        );
       }
 
       const expiryDate = new Date();
@@ -171,7 +207,9 @@ export class GoogleTokenService {
         userInfo,
       };
     } catch (error) {
-      throw new UnauthorizedException('Failed to exchange authorization code: ' + error.message);
+      throw new UnauthorizedException(
+        'Failed to exchange authorization code: ' + error.message,
+      );
     }
   }
 
@@ -195,4 +233,3 @@ export class GoogleTokenService {
     });
   }
 }
-
