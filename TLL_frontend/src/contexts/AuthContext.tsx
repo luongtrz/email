@@ -74,9 +74,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Lưu Access Token vào MEMORY (Zustand store)
       setAccessToken(response.data.accessToken);
       setUser(response.data.user);
-      console.log("🔵 Login success!");
+      console.log("Login success!");
     } catch (error) {
-      console.error("🔴 Login error:", error);
+      console.error("Login error:", error);
       throw error;
     }
   };
