@@ -12,7 +12,7 @@ import {
   Forward,
 } from "lucide-react";
 import { emailService } from "../../services/email.service";
-import { DeleteConfirmModal } from "./DeleteConfirmModal";
+import { DeleteConfirmModal } from "../modals/DeleteConfirmModal";
 import type { Email } from "../../types/email.types";
 
 interface EmailDetailProps {

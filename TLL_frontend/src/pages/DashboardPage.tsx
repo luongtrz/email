@@ -18,7 +18,7 @@ import { EmailList } from "../components/email/EmailList";
 import { EmailListSkeleton } from "../components/email/EmailListSkeleton";
 import { EmailDetail } from "../components/email/EmailDetail";
 import { ComposeModal } from "../components/email/ComposeModal";
-import { DeleteConfirmModal } from "../components/email/DeleteConfirmModal";
+import { DeleteConfirmModal } from "../components/modals/DeleteConfirmModal";
 import type { Email, Folder } from "../types/email.types";
 
 export const DashboardPage: React.FC = () => {
