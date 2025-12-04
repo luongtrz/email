@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -21,152 +21,84 @@ import { ComposeModal } from "../components/email/ComposeModal";
 import { DeleteConfirmModal } from "../components/modals/DeleteConfirmModal";
 import type { Email, Folder } from "../types/email.types";
 
+// ========== CUSTOM HOOKS ==========
+import { useEmails } from "../hooks/useEmails";
+import { useEmailActions } from "../hooks/useEmailActions";
+import { useResizable } from "../hooks/useResizable";
+import { useKeyboardNav } from "../hooks/useKeyboardNav";
+import { useOutsideClick } from "../hooks/useOutsideClick";
+
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  // ========== BASIC STATE ==========
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [emails, setEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [activeFolder, setActiveFolder] = useState("inbox");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [gmailNotConnected, setGmailNotConnected] = useState(false);
+
+  // ========== UI STATE ==========
   const [showMobileDetail, setShowMobileDetail] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showCompose, setShowCompose] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
-  const [pagination, setPagination] = useState({
-    page: 1,
-    total: 0,
-    limit: 20,
-  });
   const [composeMode, setComposeMode] = useState<{
     type: "new" | "reply" | "forward";
     email?: Email;
   }>({ type: "new" });
-  const [gmailNotConnected, setGmailNotConnected] = useState(false);
-  const [emailListWidth, setEmailListWidth] = useState(() => {
-    const availableWidth = window.innerWidth - (showSidebar ? 224 : 0) - 300;
-    return Math.min(1080, Math.max(300, availableWidth * 0.6));
-  });
-  const [isResizing, setIsResizing] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // ========== DELETE MODAL STATE ==========
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [emailToDelete, setEmailToDelete] = useState<string | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const isInitialMount = useRef(true);
-  const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load initial data
-  useEffect(() => {
-    let isCancelled = false;
+  // ========== CUSTOM HOOKS ==========
+  const {
+    emails,
+    setEmails,
+    isLoading,
+    isLoadingMore,
+    loadEmails,
+    loadMoreEmails,
+  } = useEmails({
+    folder: activeFolder,
+    search: searchQuery,
+  });
 
-    const loadInitialData = async () => {
-      setIsLoading(true);
-      try {
-        const foldersData = await emailService.getMailboxes();
-        if (isCancelled) return;
-        setFolders(foldersData);
-        setGmailNotConnected(false);
+  const {
+    markAsRead,
+    toggleStar,
+    archiveEmail,
+    deleteEmail,
+    deleteBulk,
+    markBulkAsRead,
+  } = useEmailActions({
+    emails,
+    setEmails,
+    selectedEmail,
+    setSelectedEmail,
+  });
 
-        const result = await emailService.getEmails({
-          folder: activeFolder,
-          search: searchQuery || undefined,
-          page: 1,
-          limit: 20,
-        });
-        if (isCancelled) return;
-        setEmails(result.emails);
-        setPagination(result.pagination);
-      } catch (error: any) {
-        if (!isCancelled) {
-          console.error("Failed to load initial data:", error);
+  const sidebarWidth = showSidebar ? 224 : 0;
+  const {
+    width: emailListWidth,
+    isResizing,
+    handleMouseDown,
+  } = useResizable({
+    minWidth: 300,
+    maxWidth: 1200,
+    defaultWidth: 448,
+    offsetLeft: sidebarWidth,
+  });
 
-          // If 401 and not Gmail-specific error, redirect to login
-          if (error.response?.status === 401) {
-            if (
-              error.response?.data?.message?.includes(
-                "Gmail account not connected"
-              )
-            ) {
-              setGmailNotConnected(true);
-            } else {
-              // Invalid token, force logout
-              logout();
-              navigate("/login", { replace: true });
-              return;
-            }
-          }
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-          isInitialMount.current = false;
-        }
-      }
-    };
+  const userMenuRef = useOutsideClick(() => setShowUserMenu(false));
 
-    loadInitialData();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isInitialMount.current) return;
-    loadEmails();
-  }, [activeFolder, searchQuery]);
-
-  const loadEmails = async () => {
-    setIsLoading(true);
-    try {
-      const result = await emailService.getEmails({
-        folder: activeFolder,
-        search: searchQuery || undefined,
-        page: 1,
-        limit: pagination.limit,
-      });
-      setEmails(result.emails);
-      setPagination(result.pagination);
-    } catch (error) {
-      console.error("Failed to load emails:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadMoreEmails = async () => {
-    if (isLoadingMore) return;
-
-    setIsLoadingMore(true);
-    try {
-      const nextPage = pagination.page + 1;
-      const result = await emailService.getEmails({
-        folder: activeFolder,
-        search: searchQuery || undefined,
-        page: nextPage,
-        limit: pagination.limit,
-      });
-
-      if (result.emails.length > 0) {
-        setEmails((prev) => [...prev, ...result.emails]);
-        setPagination(result.pagination);
-        toast.success(`Loaded ${result.emails.length} more emails`);
-      } else {
-        toast.error("No more emails to load");
-      }
-    } catch (error) {
-      console.error("Failed to load more emails:", error);
-      toast.error("Failed to load more emails");
-    } finally {
-      setIsLoadingMore(false);
-    }
-  };
-
+  // ========== EMAIL SELECTION HANDLER ==========
   const handleEmailSelect = async (emailId: string) => {
     const email = emails.find((e) => e.id === emailId);
     if (email) {
@@ -174,23 +106,76 @@ export const DashboardPage: React.FC = () => {
       setShowMobileDetail(true);
 
       if (!email.read) {
-        // Optimistic update - mark as read immediately in UI
-        setEmails((prev) =>
-          prev.map((e) => (e.id === emailId ? { ...e, read: true } : e))
-        );
-
-        try {
-          await emailService.markAsRead(emailId);
-        } catch (error) {
-          // Rollback on error
-          setEmails((prev) =>
-            prev.map((e) => (e.id === emailId ? { ...e, read: false } : e))
-          );
-        }
+        await markAsRead(emailId);
       }
     }
   };
 
+  // ========== COMPOSE HANDLERS ==========
+  const handleReply = (email: Email) => {
+    setComposeMode({ type: "reply", email });
+    setShowCompose(true);
+  };
+
+  const handleForward = (email: Email) => {
+    setComposeMode({ type: "forward", email });
+    setShowCompose(true);
+  };
+
+  // ========== DELETE HANDLERS ==========
+  const handleDeleteEmail = (emailId: string) => {
+    setEmailToDelete(emailId);
+    setIsBulkDelete(false);
+    setDeleteModalOpen(true);
+  };
+
+  const handleBulkDelete = () => {
+    setIsBulkDelete(true);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+
+    try {
+      if (isBulkDelete && selectedEmails.size > 0) {
+        await deleteBulk(Array.from(selectedEmails));
+        setSelectedEmails(new Set());
+      } else if (emailToDelete) {
+        await deleteEmail(emailToDelete);
+        setEmailToDelete(null);
+      }
+
+      setDeleteModalOpen(false);
+      setIsBulkDelete(false);
+    } catch (error) {
+      console.error("Delete failed:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteModalOpen(false);
+    setEmailToDelete(null);
+    setIsBulkDelete(false);
+  };
+
+  // ========== OTHER ACTIONS ==========
+  const handleArchiveEmail = async (emailId: string) => {
+    await archiveEmail(emailId);
+  };
+
+  const handleToggleStar = async (emailId: string) => {
+    await toggleStar(emailId);
+  };
+
+  const handleBulkMarkRead = async () => {
+    await markBulkAsRead(Array.from(selectedEmails));
+    setSelectedEmails(new Set());
+  };
+
+  // ========== NAVIGATION & UI HANDLERS ==========
   const handleFolderChange = (folderId: string) => {
     setActiveFolder(folderId);
     setShowMobileDetail(false);
@@ -208,176 +193,46 @@ export const DashboardPage: React.FC = () => {
     loadEmails();
   };
 
-  const handleBulkDelete = () => {
-    setIsBulkDelete(true);
-    setDeleteModalOpen(true);
-  };
-
-  const handleBulkMarkRead = () => {
-    setEmails((prev) =>
-      prev.map((e) => (selectedEmails.has(e.id) ? { ...e, read: true } : e))
-    );
-    setSelectedEmails(new Set());
-  };
-
-  // Keyboard navigation handlers
-  const handleReply = (email: Email) => {
-    setComposeMode({ type: "reply", email });
-    setShowCompose(true);
-  };
-
-  const handleForward = (email: Email) => {
-    setComposeMode({ type: "forward", email });
-    setShowCompose(true);
-  };
-
-  const handleDeleteEmail = (emailId: string) => {
-    setEmailToDelete(emailId);
-    setDeleteModalOpen(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    setIsDeleting(true);
-
-    try {
-      // Handle bulk deletion
-      if (isBulkDelete && selectedEmails.size > 0) {
-        const deletePromises = Array.from(selectedEmails).map((emailId) =>
-          emailService.modifyEmail(emailId, { delete: true })
-        );
-        await Promise.all(deletePromises);
-
-        // Remove deleted emails from the list
-        setEmails((prev) => prev.filter((e) => !selectedEmails.has(e.id)));
-
-        // Clear selected email if it was deleted
-        if (selectedEmail && selectedEmails.has(selectedEmail.id)) {
-          setSelectedEmail(null);
-        }
-
-        toast.success(
-          `${selectedEmails.size} email${
-            selectedEmails.size > 1 ? "s" : ""
-          } deleted`
-        );
-        setSelectedEmails(new Set());
-      }
-      // Handle single email deletion
-      else if (emailToDelete) {
-        await emailService.modifyEmail(emailToDelete, { delete: true });
-        setEmails((prev) => prev.filter((e) => e.id !== emailToDelete));
-
-        if (selectedEmail?.id === emailToDelete) {
-          setSelectedEmail(null);
-        }
-
-        toast.success("Email deleted");
-        setEmailToDelete(null);
-      }
-
-      setDeleteModalOpen(false);
-      setIsBulkDelete(false);
-    } catch {
-      toast.error("Failed to delete email(s)");
-    } finally {
-      setIsDeleting(false);
+  const handleLoadMore = async () => {
+    const count = await loadMoreEmails();
+    if (count && count > 0) {
+      toast.success(`Loaded ${count} more emails`);
+    } else {
+      toast("No more emails to load");
     }
   };
 
-  const handleCancelDelete = () => {
-    setDeleteModalOpen(false);
-    setEmailToDelete(null);
-    setIsBulkDelete(false);
-  };
+  // ========== KEYBOARD NAVIGATION ==========
+  useKeyboardNav(emails, selectedEmail?.id || null, handleEmailSelect, {
+    onReply: handleReply,
+    onForward: handleForward,
+    onDelete: handleDeleteEmail,
+    onArchive: handleArchiveEmail,
+    onToggleStar: handleToggleStar,
+  });
 
-  const handleArchiveEmail = async (emailId: string) => {
-    try {
-      await emailService.modifyEmail(emailId, { archive: true });
-      setEmails((prev) => prev.filter((e) => e.id !== emailId));
-      if (selectedEmail?.id === emailId) {
-        setSelectedEmail(null);
-      }
-      toast.success("Email archived");
-    } catch (error) {
-      console.error("Failed to archive email:", error);
-      toast.error("Failed to archive email");
-    }
-  };
-
-  const handleToggleStar = async (emailId: string) => {
-    const email = emails.find((e) => e.id === emailId);
-    if (!email) return;
-
-    // Optimistic update
-    setEmails((prev) =>
-      prev.map((e) => (e.id === emailId ? { ...e, starred: !e.starred } : e))
-    );
-
-    try {
-      await emailService.modifyEmail(
-        emailId,
-        email.starred ? { unstar: true } : { star: true }
-      );
-    } catch (error) {
-      // Rollback on error
-      setEmails((prev) =>
-        prev.map((e) =>
-          e.id === emailId ? { ...e, starred: email.starred } : e
-        )
-      );
-      toast.error("Failed to update star");
-    }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsResizing(true);
-    e.preventDefault();
-  };
-
-  const handleMouseMove = React.useCallback(
-    (e: MouseEvent) => {
-      if (!isResizing) return;
-
-      const newWidth = e.clientX - (showSidebar ? 224 : 0); // Subtract sidebar width
-      if (newWidth >= 300 && newWidth <= 1200) {
-        setEmailListWidth(newWidth);
-      }
-    },
-    [isResizing, showSidebar]
-  );
-
-  const handleMouseUp = React.useCallback(() => {
-    setIsResizing(false);
-  }, []);
-
-  React.useEffect(() => {
-    if (isResizing) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      return () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-      };
-    }
-  }, [isResizing, handleMouseMove, handleMouseUp]);
-
-  // Close user menu when clicking outside
+  // ========== LOAD FOLDERS ==========
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(event.target as Node)
-      ) {
-        setShowUserMenu(false);
+    const loadFolders = async () => {
+      try {
+        const foldersData = await emailService.getMailboxes();
+        setFolders(foldersData);
+        setGmailNotConnected(false);
+      } catch (error: any) {
+        if (
+          error.response?.status === 401 &&
+          error.response?.data?.message?.includes("Gmail account not connected")
+        ) {
+          setGmailNotConnected(true);
+        } else {
+          logout();
+          navigate("/login", { replace: true });
+        }
       }
     };
 
-    if (showUserMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showUserMenu]);
+    loadFolders();
+  }, [logout, navigate]);
 
   return (
     <div
@@ -442,7 +297,6 @@ export const DashboardPage: React.FC = () => {
             {/* Dropdown Menu */}
             {showUserMenu && (
               <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                {/* User Info */}
                 <div className="px-4 py-3 border-b border-gray-200">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white text-lg font-medium">
@@ -459,7 +313,6 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Menu Items */}
                 <div className="py-1">
                   <button
                     onClick={() => {
@@ -477,7 +330,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Bulk Actions Bar - Centered with clear labels */}
+        {/* Bulk Actions Bar */}
         {selectedEmails.size > 0 && (
           <div className="px-4 py-3 bg-blue-50 border-t border-blue-200 flex items-center justify-center gap-4">
             <span className="text-sm font-medium text-blue-900">
@@ -620,7 +473,7 @@ export const DashboardPage: React.FC = () => {
                   return newSet;
                 });
               }}
-              onLoadMore={loadMoreEmails}
+              onLoadMore={handleLoadMore}
               isLoadingMore={isLoadingMore}
               onReply={handleReply}
               onForward={handleForward}
@@ -693,7 +546,7 @@ export const DashboardPage: React.FC = () => {
                   return newSet;
                 });
               }}
-              onLoadMore={loadMoreEmails}
+              onLoadMore={handleLoadMore}
               isLoadingMore={isLoadingMore}
               onReply={handleReply}
               onForward={handleForward}
