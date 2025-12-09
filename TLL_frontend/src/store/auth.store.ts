@@ -86,7 +86,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       logger.error("Logout API error", error);
       // Continue with local cleanup even if API fails
     }
-    
+
     // Clear local state (access token in memory only)
     set({
       accessToken: null,
@@ -109,7 +109,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         user: profile.data,
         isAuthenticated: true,
       });
-    } catch (error) {
+    } catch {
       // No active session - just clear local state, don't call logout API
       // (calling logout when not logged in causes 401 errors)
       set({

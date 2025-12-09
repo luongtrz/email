@@ -94,7 +94,8 @@ apiClient.interceptors.response.use(
     }
 
     // Check if error message contains Gmail-specific errors
-    const errorMessage = (error.response?.data as any)?.message || "";
+    const errorMessage =
+      String((error.response?.data as Record<string, unknown>)?.message) || "";
     if (
       errorMessage.includes("Gmail account not connected") ||
       errorMessage.includes("Please connect your Gmail account")

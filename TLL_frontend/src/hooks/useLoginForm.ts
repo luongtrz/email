@@ -20,8 +20,11 @@ export const useLoginForm = () => {
     try {
       await login({ email, password });
       navigate("/inbox");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Invalid email or password");
+    } catch (err: unknown) {
+      const error = err as Record<string, unknown>;
+      const response = error?.response as Record<string, unknown>;
+      const data = response?.data as Record<string, unknown>;
+      setError(String(data?.message) || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
