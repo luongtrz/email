@@ -1,19 +1,12 @@
 import React, { useState } from "react";
-import toast from "react-hot-toast";
-import {
-  Archive,
-  Trash2,
-  Star,
-  MoreVertical,
-  Download,
-  Paperclip,
-  ChevronLeft,
-  Reply,
-  Forward,
-} from "lucide-react";
-import { emailService } from "../../services/email.service";
-import { DeleteConfirmModal } from "./DeleteConfirmModal";
+import { DeleteConfirmModal } from "../modals/DeleteConfirmModal";
+import { EmailDetailHeader } from "./detail/EmailDetailHeader";
+import { EmailDetailSender } from "./detail/EmailDetailSender";
+import { EmailDetailBody } from "./detail/EmailDetailBody";
+import { EmailDetailAttachments } from "./detail/EmailDetailAttachments";
 import type { Email } from "../../types/email.types";
+import { emailService } from "../../services/email.service";
+import toast from "react-hot-toast";
 
 interface EmailDetailProps {
   email: Email | null;
@@ -31,9 +24,70 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
   onForward,
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
-  const [showMore, setShowMore] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleArchive = async () => {
+    if (!email) return;
+    setIsActionLoading(true);
+    try {
+      await emailService.modifyEmail(email.id, { archive: true });
+      toast.success("Email archived");
+      onEmailUpdated?.();
+      onClose?.();
+    } catch (error) {
+      toast.error("Failed to archive email");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleStar = async () => {
+    if (!email) return;
+    setIsActionLoading(true);
+    try {
+      await emailService.modifyEmail(email.id, { star: !email.starred });
+      toast.success(email.starred ? "Removed star" : "Starred");
+      onEmailUpdated?.();
+    } catch (error) {
+      toast.error("Failed to update star");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleDownloadAttachment = async (attachmentId: string) => {
+    if (!email) return;
+    try {
+      const blob = await emailService.downloadAttachment(attachmentId, email.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = attachmentId;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      toast.error("Failed to download attachment");
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!email) return;
+    setIsDeleting(true);
+    try {
+      await emailService.modifyEmail(email.id, { delete: true });
+      toast.success("Email deleted");
+      setDeleteModalOpen(false);
+      onEmailUpdated?.();
+      onClose?.();
+    } catch (error) {
+      toast.error("Failed to delete email");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (!email) {
     return (
@@ -65,265 +119,39 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
     );
   }
 
-  const formatFullDate = (date: Date | string) => {
-    const dateObj = typeof date === "string" ? new Date(date) : date;
-    return dateObj.toLocaleDateString("en-US", {
-      weekday: "short",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const handleDownloadAttachment = async (
-    attachmentId: string,
-    filename: string
-  ) => {
-    try {
-      setIsActionLoading(true);
-      const blob = await emailService.downloadAttachment(
-        email.id,
-        attachmentId
-      );
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success(`Downloaded ${filename}`);
-    } catch (error) {
-      console.error("Failed to download attachment:", error);
-      toast.error("Failed to download attachment");
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await emailService.modifyEmail(email.id, { delete: true });
-      toast.success("Email deleted");
-      setDeleteModalOpen(false);
-      onEmailUpdated?.();
-      onClose?.();
-    } catch {
-      toast.error("Failed to delete email");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleCancelDelete = () => {
-    setDeleteModalOpen(false);
-  };
-
   return (
     <div className="h-full w-full flex flex-col bg-white">
-      {/* Header with Actions - Gmail style compact */}
-      <div className="border-b border-gray-200 flex-shrink-0">
-        {/* Mobile Back Button */}
-        {onClose && (
-          <div className="lg:hidden px-3 py-2 border-b border-gray-100">
-            <button
-              onClick={onClose}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-              <span className="text-sm">Back</span>
-            </button>
-          </div>
-        )}
+      <EmailDetailHeader
+        email={email}
+        isActionLoading={isActionLoading}
+        onArchive={handleArchive}
+        onDelete={() => setDeleteModalOpen(true)}
+        onStar={handleStar}
+        onReply={onReply}
+        onForward={onForward}
+        onClose={onClose}
+      />
 
-        {/* Action Bar - Compact Gmail style */}
-        <div className="px-4 py-2 flex items-center justify-between gap-2 bg-white">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={async () => {
-                setIsActionLoading(true);
-                try {
-                  await emailService.modifyEmail(email.id, { archive: true });
-                  toast.success("Email archived");
-                  onEmailUpdated?.();
-                } catch (error) {
-                  console.error("Failed to archive:", error);
-                  toast.error("Failed to archive");
-                } finally {
-                  setIsActionLoading(false);
-                }
-              }}
-              disabled={isActionLoading}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              title="Archive"
-            >
-              <Archive className="w-5 h-5 text-gray-700" />
-            </button>
-            <button
-              onClick={() => setDeleteModalOpen(true)}
-              disabled={isActionLoading}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              title="Delete"
-            >
-              <Trash2 className="w-5 h-5 text-gray-700" />
-            </button>
-            <button
-              onClick={async () => {
-                setIsActionLoading(true);
-                try {
-                  await emailService.modifyEmail(
-                    email.id,
-                    email.starred ? { unstar: true } : { star: true }
-                  );
-                  toast.success(email.starred ? "Removed star" : "Added star");
-                  onEmailUpdated?.();
-                } catch (error) {
-                  console.error("Failed to toggle star:", error);
-                  toast.error("Failed to update");
-                } finally {
-                  setIsActionLoading(false);
-                }
-              }}
-              disabled={isActionLoading}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              title="Star"
-            >
-              <Star
-                className={`w-5 h-5 ${
-                  email.starred
-                    ? "text-yellow-500 fill-yellow-500"
-                    : "text-gray-700"
-                }`}
-              />
-            </button>
-
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-200 mx-1" />
-
-            {/* Reply Button */}
-            {onReply && (
-              <button
-                onClick={() => onReply(email)}
-                disabled={isActionLoading}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                title="Reply"
-              >
-                <Reply className="w-5 h-5 text-gray-700" />
-              </button>
-            )}
-
-            {/* Forward Button */}
-            {onForward && (
-              <button
-                onClick={() => onForward(email)}
-                disabled={isActionLoading}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                title="Forward"
-              >
-                <Forward className="w-5 h-5 text-gray-700" />
-              </button>
-            )}
-          </div>
-
-          <button
-            onClick={() => setShowMore(!showMore)}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            title="More"
-          >
-            <MoreVertical className="w-5 h-5 text-gray-700" />
-          </button>
-        </div>
-      </div>
-
-      {/* Email Content - Gmail compact style */}
       <div className="flex-1 overflow-y-auto bg-gray-50">
         <div className="max-w-4xl mx-auto p-4 sm:p-6">
-          {/* Subject */}
           <h1 className="text-xl sm:text-2xl font-normal text-gray-900 mb-4">
             {email.subject}
           </h1>
 
-          {/* Sender Info - Compact */}
-          <div className="flex items-start gap-3 mb-4 p-3 bg-white rounded-lg border border-gray-200">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium flex-shrink-0">
-              {email.from.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-2 mb-1">
-                <span className="font-medium text-gray-900">
-                  {email.from.name}
-                </span>
-                <span className="text-xs text-gray-500">
-                  &lt;{email.from.email}&gt;
-                </span>
-              </div>
-              <div className="text-sm text-gray-600">
-                to {email.to.join(", ")}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {formatFullDate(email.date)}
-              </div>
-            </div>
-            {email.starred && (
-              <Star className="w-5 h-5 text-yellow-500 fill-yellow-500 flex-shrink-0" />
-            )}
-          </div>
+          <EmailDetailSender email={email} />
 
-          {/* Attachments - Compact */}
           {email.attachments && email.attachments.length > 0 && (
-            <div className="mb-4 p-3 bg-white border border-gray-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-2 text-sm text-gray-700">
-                <Paperclip className="w-4 h-4" />
-                <span>
-                  {email.attachments.length} attachment
-                  {email.attachments.length > 1 ? "s" : ""}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {email.attachments.map((attachment, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() =>
-                      handleDownloadAttachment(
-                        attachment.id || "",
-                        attachment.filename
-                      )
-                    }
-                    disabled={isActionLoading}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-sm disabled:opacity-50"
-                  >
-                    <Paperclip className="w-4 h-4 text-gray-600" />
-                    <span className="text-gray-900 truncate max-w-[200px]">
-                      {attachment.filename}
-                    </span>
-                    <span className="text-gray-500 text-xs">
-                      {attachment.size}
-                    </span>
-                    <Download className="w-3 h-3 text-gray-400" />
-                  </button>
-                ))}
-              </div>
-            </div>
+            <EmailDetailAttachments
+              attachments={email.attachments}
+              onDownload={handleDownloadAttachment}
+              isLoading={isActionLoading}
+            />
           )}
 
-          {/* Email Body - Compact with forced light mode */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div
-              className="prose prose-sm max-w-none text-gray-800 [&_*]:!text-gray-800 [&_*]:!bg-transparent"
-              style={{
-                colorScheme: "light",
-              }}
-              dangerouslySetInnerHTML={{ __html: email.body }}
-            />
-          </div>
+          <EmailDetailBody body={email.body} />
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={deleteModalOpen}
         title="Delete email?"
@@ -333,7 +161,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
         isLoading={isDeleting}
         isDangerous={true}
         onConfirm={handleConfirmDelete}
-        onCancel={handleCancelDelete}
+        onCancel={() => setDeleteModalOpen(false)}
       />
     </div>
   );

@@ -35,8 +35,3 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   INBOX: '/inbox',
 } as const;
-
-export const TOKEN_KEY = {
-  ACCESS: 'access_token',
-  REFRESH: 'refresh_token',
-} as const;

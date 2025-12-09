@@ -28,9 +28,60 @@ export class GmailParserService {
       read: !message.labelIds?.includes('UNREAD'),
       starred: message.labelIds?.includes('STARRED') || false,
       folder: this.determineFolder(message.labelIds || []),
+      labelIds: message.labelIds || [], // Include Gmail labels for frontend filtering
       attachments: attachments.length > 0 ? attachments : undefined,
       snippet: message.snippet || '',
     };
+  }
+
+  /**
+   * Decode RFC 2047 encoded-words in email headers
+   * Example: =?UTF-8?B?TGnhu4FuZyBCw6Nu?= -> Liêng Bún
+   */
+  private decodeHeader(value: string): string {
+    if (!value) return value;
+
+    // Match RFC 2047 encoded-words: =?charset?encoding?encoded-text?=
+    const encodedWordRegex = /=\?([^?]+)\?([BQbq])\?([^?]+)\?=/g;
+    
+    return value.replace(encodedWordRegex, (match, charset, encoding, encodedText) => {
+      try {
+        if (encoding.toUpperCase() === 'B') {
+          // Base64 encoding
+          const decoded = Buffer.from(encodedText, 'base64').toString('utf-8');
+          return decoded;
+        } else if (encoding.toUpperCase() === 'Q') {
+          // Quoted-printable encoding
+          const decoded = encodedText
+            .replace(/_/g, ' ')
+            .replace(/=([0-9A-F]{2})/gi, (_, hex) => 
+              String.fromCharCode(parseInt(hex, 16))
+            );
+          return decoded;
+        }
+      } catch (error) {
+        console.warn('Failed to decode header:', match, error);
+        return match; // Return original if decode fails
+      }
+      return match;
+    });
+  }
+
+  /**
+   * Encode header value to RFC 2047 if contains non-ASCII characters
+   * Example: Liêng Bún -> =?UTF-8?B?TGnhu4FuZyBCw6Bu?=
+   */
+  private encodeHeader(value: string): string {
+    if (!value) return value;
+
+    // Check if string contains non-ASCII characters
+    if (!/[^\x00-\x7F]/.test(value)) {
+      return value; // Pure ASCII, no encoding needed
+    }
+
+    // Encode as Base64
+    const encoded = Buffer.from(value, 'utf-8').toString('base64');
+    return `=?UTF-8?B?${encoded}?=`;
   }
 
   /**
@@ -42,7 +93,9 @@ export class GmailParserService {
     const result: Record<string, string> = {};
     headers.forEach((header) => {
       if (header.name && header.value) {
-        result[header.name.toLowerCase()] = header.value;
+        // Decode RFC 2047 encoded headers
+        const decodedValue = this.decodeHeader(header.value);
+        result[header.name.toLowerCase()] = decodedValue;
       }
     });
     return result;
@@ -241,7 +294,7 @@ export class GmailParserService {
     if (bcc && bcc.length > 0) {
       lines.push(`Bcc: ${bcc.join(', ')}`);
     }
-    lines.push(`Subject: ${subject}`);
+    lines.push(`Subject: ${this.encodeHeader(subject)}`);
     lines.push(`Date: ${new Date().toUTCString()}`);
     if (replyTo) {
       lines.push(`Reply-To: ${replyTo}`);

@@ -49,6 +49,7 @@ export class AuthController {
     
     return {
       user: result.user,
+      accessToken: result.accessToken, // For frontend memory storage
       message: 'Registration successful. Tokens are set in cookies.',
     };
   }
@@ -77,6 +78,7 @@ export class AuthController {
     
     return {
       user: result.user,
+      accessToken: result.accessToken, // For frontend memory storage
       message: 'Login successful. Tokens are set in cookies.',
     };
   }
