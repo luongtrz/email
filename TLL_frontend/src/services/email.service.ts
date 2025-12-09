@@ -1,6 +1,7 @@
 import type { Email, Folder } from "../types/email.types";
 import apiClient from "../lib/axios";
 import { API_ENDPOINTS } from "../config/constants";
+import { logger } from "../lib/logger";
 
 // Real API integration
 export const emailService = {
@@ -56,7 +57,7 @@ export const emailService = {
       const response = await apiClient.get(API_ENDPOINTS.EMAILS.DETAIL(id));
       return response.data;
     } catch (error) {
-      console.error("Failed to fetch email:", error);
+      logger.error("Failed to fetch email", error, { emailId: id });
       return null;
     }
   },

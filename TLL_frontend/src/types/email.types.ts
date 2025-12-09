@@ -36,7 +36,8 @@ export interface Folder {
   id: string;
   name: string;
   icon: string;
-  count: number;
+  count: number; // unread count
+  totalCount?: number; // total emails in folder
   color?: string;
 }
 
