@@ -1,5 +1,6 @@
 import React from 'react';
 import { authApi } from '../services/auth.service';
+import { logger } from '../lib/logger';
 
 interface GmailConnectionBannerProps {
   onConnected?: () => void;
@@ -15,7 +16,7 @@ export const GmailConnectionBanner: React.FC<GmailConnectionBannerProps> = () =>
       // Redirect to Google OAuth
       window.location.href = url;
     } catch (error) {
-      console.error('Failed to get Google auth URL:', error);
+      logger.error('Failed to get Google auth URL', error);
       alert('Failed to initiate Gmail connection');
       setIsConnecting(false);
     }
@@ -44,7 +45,7 @@ export const GmailConnectionBanner: React.FC<GmailConnectionBannerProps> = () =>
           disabled={isConnecting}
           className="ml-4 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm font-medium disabled:opacity-50 whitespace-nowrap"
         >
-          {isConnecting ? 'Connecting...' : '🔗 Connect Gmail'}
+          {isConnecting ? 'Connecting...' : ' Connect Gmail'}
         </button>
       </div>
     </div>

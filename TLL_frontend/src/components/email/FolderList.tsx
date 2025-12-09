@@ -16,6 +16,7 @@ interface FolderListProps {
   activeFolder: string;
   onFolderChange: (folderId: string) => void;
   onCompose?: () => void;
+  isCollapsed?: boolean;
 }
 
 export const FolderList: React.FC<FolderListProps> = ({
@@ -23,6 +24,7 @@ export const FolderList: React.FC<FolderListProps> = ({
   activeFolder,
   onFolderChange,
   onCompose,
+  isCollapsed = false,
 }) => {
   return (
     <div className="h-full bg-white overflow-y-auto">
@@ -31,14 +33,17 @@ export const FolderList: React.FC<FolderListProps> = ({
         {onCompose && (
           <button
             onClick={onCompose}
-            className="mb-4 flex items-center justify-center gap-3 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-md hover:shadow-lg transition-all w-auto"
+            className={`mb-4 flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all ${
+              isCollapsed ? "w-10 h-10 rounded-full p-0" : "px-4 py-2.5 rounded-2xl w-auto"
+            }`}
+            title={isCollapsed ? "Compose" : undefined}
           >
-            <div className="w-6 h-6 flex items-center justify-center">
+            <div className="w-5 h-5 flex items-center justify-center">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </div>
-            <span className="font-medium">Compose</span>
+            {!isCollapsed && <span className="font-medium">Compose</span>}
           </button>
         )}
 
@@ -52,24 +57,52 @@ export const FolderList: React.FC<FolderListProps> = ({
                 key={folder.id}
                 onClick={() => onFolderChange(folder.id)}
                 className={`
-                  w-full flex items-center justify-between px-3 py-2 rounded-r-full text-sm font-medium transition-all
+                  w-full flex items-center transition-all text-sm font-medium
+                  ${
+                    isCollapsed
+                      ? "justify-center px-2 py-2 rounded-lg"
+                      : "justify-between px-3 py-2 rounded-r-full"
+                  }
                   ${
                     activeFolder === folder.id
                       ? 'bg-red-100 text-red-900'
                       : 'text-gray-700 hover:bg-gray-100'
                   }
                 `}
+                title={isCollapsed ? `${folder.name}${folder.count > 0 ? ` (${folder.count})` : ""}` : undefined}
               >
-                <div className="flex items-center gap-3">
-                  <div className={activeFolder === folder.id ? 'text-red-700' : 'text-gray-600'}>
-                    {icon}
+                {isCollapsed ? (
+                  <div className="relative">
+                    <div className={activeFolder === folder.id ? 'text-red-700' : 'text-gray-600'}>
+                      {icon}
+                    </div>
+                    {folder.count > 0 && (
+                      <span className={`absolute -top-2 -right-3 bg-red-600 text-white text-xs rounded-full h-4 flex items-center justify-center ${folder.count > 9 ? 'w-5' : 'w-4'}`}>
+                        {folder.count > 9 ? "9+" : folder.count}
+                      </span>
+                    )}
                   </div>
-                  <span>{folder.name}</span>
-                </div>
-                {folder.count > 0 && (
-                  <span className="text-xs font-semibold text-gray-600">
-                    {folder.count}
-                  </span>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className={activeFolder === folder.id ? 'text-red-700' : 'text-gray-600'}>
+                        {icon}
+                      </div>
+                      <span>{folder.name}</span>
+                    </div>
+                    {(folder.count > 0 || (folder.totalCount && folder.totalCount > 0)) && (
+                      <span className="text-xs font-semibold text-gray-600">
+                        {folder.count > 0 && folder.totalCount ? (
+                          <>
+                            <span className="text-red-600">{folder.count}</span>
+                            <span className="text-gray-400"> / {folder.totalCount}</span>
+                          </>
+                        ) : (
+                          folder.totalCount || folder.count
+                        )}
+                      </span>
+                    )}
+                  </>
                 )}
               </button>
             );

@@ -1,48 +1,23 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, LogIn, Chrome, Loader2 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { authApi } from '../services/auth.service';
+import React from "react";
+import { Link } from "react-router-dom";
+import { Mail, Lock, LogIn, Chrome, Loader2 } from "lucide-react";
+import { useLoginForm } from "../hooks/useLoginForm";
 
 export const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const { login } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    try {
-      await login({ email, password });
-      navigate('/inbox');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid email or password');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      setIsLoading(true);
-      const response = await authApi.getGoogleAuthUrl();
-      window.location.href = response.url;
-    } catch (err) {
-      console.error('Failed to get Google auth URL:', err);
-      setError('Failed to initialize Google login');
-      setIsLoading(false);
-    }
-  };
+  const {
+    email,
+    setEmail,
+    password,
+    setPassword,
+    isLoading,
+    error,
+    handleSubmit,
+    handleGoogleLogin,
+  } = useLoginForm();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
       <div className="w-full max-w-md">
-        {/* Logo & Header */}
         <div className="text-center mb-8 animate-slideUp">
           <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <Mail className="w-8 h-8 text-white" />
@@ -51,7 +26,6 @@ export const LoginPage: React.FC = () => {
           <p className="text-gray-600">Sign in to access your inbox</p>
         </div>
 
-        {/* Login Form */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 animate-fadeIn">
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm animate-slideUp">
@@ -99,25 +73,20 @@ export const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Signing in...</span>
-                </>
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <>
-                  <LogIn className="w-5 h-5" />
-                  <span>Sign In</span>
-                </>
+                <LogIn className="w-5 h-5" />
               )}
+              {isLoading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-4 bg-white text-gray-500">Or continue with</span>
@@ -127,23 +96,20 @@ export const LoginPage: React.FC = () => {
           <button
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm hover:shadow-md"
+            type="button"
+            className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            <Chrome className="w-5 h-5 text-blue-600" />
-            <span>Connect Gmail Account</span>
+            <Chrome className="w-5 h-5" />
+            Continue with Google
           </button>
 
-          <div className="mt-6 text-center text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-700 transition-colors">
+          <p className="mt-6 text-center text-sm text-gray-600">
+            Don't have an account?{" "}
+            <Link to="/register" className="text-blue-600 font-medium hover:text-blue-700 transition-colors">
               Sign up
             </Link>
-          </div>
+          </p>
         </div>
-
-        <p className="text-center text-xs text-gray-500 mt-6">
-          © 2025 Student360 Mail. Built with ❤️ for G04 Track A
-        </p>
       </div>
     </div>
   );

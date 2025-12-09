@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { TOKEN_KEY } from '../config/constants';
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuthStore } from "../store/auth.store";
+import { logger } from "../lib/logger";
 
 export const GoogleCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setUser, setAccessToken } = useAuth();
+  const { setUser, setAccessToken } = useAuthStore();
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
@@ -32,15 +32,15 @@ export const GoogleCallbackPage: React.FC = () => {
         // Parse user data
         const user = JSON.parse(decodeURIComponent(userJson));
 
-        // Store tokens
+        // Store access token in memory only
+        // Refresh token is already in httpOnly cookie set by backend
         setAccessToken(accessToken);
-        localStorage.setItem(TOKEN_KEY.REFRESH, refreshToken);
         setUser(user);
 
         // Success! Redirect to inbox
         navigate('/inbox');
       } catch (err: any) {
-        console.error('OAuth callback error:', err);
+        logger.error('OAuth callback error', err);
         setError(err.response?.data?.message || 'Failed to authenticate with Google');
         setTimeout(() => navigate('/login'), 3000);
       }
