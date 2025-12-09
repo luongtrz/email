@@ -5,7 +5,7 @@ import { useAuthStore } from "../store/auth.store";
 export const useRegisterForm = () => {
   const navigate = useNavigate();
   const { register } = useAuthStore();
-  
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -44,8 +44,13 @@ export const useRegisterForm = () => {
         password: formData.password,
       });
       navigate("/inbox");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed. Please try again.");
+    } catch (err: unknown) {
+      const error = err as Record<string, unknown>;
+      const response = error?.response as Record<string, unknown>;
+      const data = response?.data as Record<string, unknown>;
+      setError(
+        String(data?.message) || "Registration failed. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }

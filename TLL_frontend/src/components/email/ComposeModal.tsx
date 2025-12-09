@@ -15,7 +15,7 @@ interface ComposeModalProps {
     id: string;
     subject: string;
     body: string;
-    attachments?: any[];
+    attachments?: Array<{ id: string; filename: string }>;
   };
 }
 
@@ -32,7 +32,9 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
     ? `Fwd: ${forwardEmail.subject}`
     : "";
   const initialBody = replyTo
-    ? `\n\n---\nOn ${new Date().toLocaleDateString()}, ${replyTo.from.name} wrote:\n${replyTo.body}`
+    ? `\n\n---\nOn ${new Date().toLocaleDateString()}, ${
+        replyTo.from.name
+      } wrote:\n${replyTo.body}`
     : forwardEmail
     ? `\n\n\nForwarded message:\n${forwardEmail.body}`
     : "";
@@ -97,11 +99,16 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
         </div>
 
         {!isMinimized && (
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col flex-1 overflow-hidden"
+          >
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700 w-16">To:</label>
+                  <label className="text-sm font-medium text-gray-700 w-16">
+                    To:
+                  </label>
                   <input
                     type="email"
                     multiple
@@ -129,7 +136,9 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
 
               {showCc && (
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700 w-16">Cc:</label>
+                  <label className="text-sm font-medium text-gray-700 w-16">
+                    Cc:
+                  </label>
                   <input
                     type="email"
                     multiple
@@ -143,7 +152,9 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
 
               {showBcc && (
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700 w-16">Bcc:</label>
+                  <label className="text-sm font-medium text-gray-700 w-16">
+                    Bcc:
+                  </label>
                   <input
                     type="email"
                     multiple
@@ -156,7 +167,9 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
               )}
 
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700 w-16">Subject:</label>
+                <label className="text-sm font-medium text-gray-700 w-16">
+                  Subject:
+                </label>
                 <input
                   type="text"
                   value={subject}

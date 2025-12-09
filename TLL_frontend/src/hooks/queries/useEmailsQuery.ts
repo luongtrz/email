@@ -1,16 +1,22 @@
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { emailService } from '../../services/email.service';
-import type { Email } from '../../types/email.types';
-import { toast } from 'react-hot-toast';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { toast } from "react-hot-toast";
+import { emailService } from "../../services/email.service";
+import type { Email } from "../../types/email.types";
 
 // Query Keys
 export const emailKeys = {
-  all: ['emails'] as const,
-  lists: () => [...emailKeys.all, 'list'] as const,
-  list: (folder: string, search: string) => [...emailKeys.lists(), { folder, search }] as const,
-  details: () => [...emailKeys.all, 'detail'] as const,
+  all: ["emails"] as const,
+  lists: () => [...emailKeys.all, "list"] as const,
+  list: (folder: string, search: string) =>
+    [...emailKeys.lists(), { folder, search }] as const,
+  details: () => [...emailKeys.all, "detail"] as const,
   detail: (id: string) => [...emailKeys.details(), id] as const,
-  mailboxes: () => ['mailboxes'] as const,
+  mailboxes: () => ["mailboxes"] as const,
 };
 
 /**
@@ -20,11 +26,11 @@ export const useEmailsQuery = (folder: string, search: string, limit = 20) => {
   return useQuery({
     queryKey: emailKeys.list(folder, search),
     queryFn: async () => {
-      const result = await emailService.getEmails({ 
-        folder, 
-        search: search || undefined, 
-        page: 1, 
-        limit 
+      const result = await emailService.getEmails({
+        folder,
+        search: search || undefined,
+        page: 1,
+        limit,
       });
       return result;
     },
@@ -35,15 +41,19 @@ export const useEmailsQuery = (folder: string, search: string, limit = 20) => {
 /**
  * Infinite scroll query for emails
  */
-export const useInfiniteEmailsQuery = (folder: string, search: string, limit = 20) => {
+export const useInfiniteEmailsQuery = (
+  folder: string,
+  search: string,
+  limit = 20
+) => {
   return useInfiniteQuery({
     queryKey: emailKeys.list(folder, search),
     queryFn: async ({ pageParam = 1 }) => {
-      const result = await emailService.getEmails({ 
-        folder, 
-        search: search || undefined, 
-        page: pageParam, 
-        limit 
+      const result = await emailService.getEmails({
+        folder,
+        search: search || undefined,
+        page: pageParam,
+        limit,
       });
       return result;
     },
@@ -61,7 +71,7 @@ export const useInfiniteEmailsQuery = (folder: string, search: string, limit = 2
  */
 export const useEmailDetailQuery = (emailId: string | null) => {
   return useQuery({
-    queryKey: emailKeys.detail(emailId || ''),
+    queryKey: emailKeys.detail(emailId || ""),
     queryFn: () => emailService.getEmailById(emailId!),
     enabled: !!emailId,
   });
@@ -85,7 +95,13 @@ export const useMarkEmailReadMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ emailId, read }: { emailId: string; read: boolean }) => {
+    mutationFn: async ({
+      emailId,
+      read,
+    }: {
+      emailId: string;
+      read: boolean;
+    }) => {
       await emailService.modifyEmail(emailId, { markAsRead: read });
       return { emailId, read };
     },
@@ -94,24 +110,25 @@ export const useMarkEmailReadMutation = () => {
       await queryClient.cancelQueries({ queryKey: emailKeys.all });
 
       // Snapshot previous value
-      const previousEmails = queryClient.getQueriesData({ queryKey: emailKeys.lists() });
+      const previousEmails = queryClient.getQueriesData({
+        queryKey: emailKeys.lists(),
+      });
 
       // Optimistically update for infinite query
-      queryClient.setQueriesData<{ pages: Array<{ emails: Email[]; pagination: any }> }>(
-        { queryKey: emailKeys.lists() },
-        (old) => {
-          if (!old?.pages) return old;
-          return {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              emails: page.emails.map((email) =>
-                email.id === emailId ? { ...email, read } : email
-              ),
-            })),
-          };
-        }
-      );
+      queryClient.setQueriesData<{
+        pages: Array<{ emails: Email[]; pagination: Record<string, unknown> }>;
+      }>({ queryKey: emailKeys.lists() }, (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            emails: page.emails.map((email) =>
+              email.id === emailId ? { ...email, read } : email
+            ),
+          })),
+        };
+      });
 
       return { previousEmails };
     },
@@ -122,7 +139,7 @@ export const useMarkEmailReadMutation = () => {
           queryClient.setQueryData(queryKey, data);
         });
       }
-      toast.error('Failed to update email status');
+      toast.error("Failed to update email status");
     },
     onSuccess: () => {
       // Invalidate mailboxes to update counts
@@ -138,30 +155,37 @@ export const useStarEmailMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ emailId, starred }: { emailId: string; starred: boolean }) => {
+    mutationFn: async ({
+      emailId,
+      starred,
+    }: {
+      emailId: string;
+      starred: boolean;
+    }) => {
       await emailService.modifyEmail(emailId, { star: starred });
       return { emailId, starred };
     },
     onMutate: async ({ emailId, starred }) => {
       await queryClient.cancelQueries({ queryKey: emailKeys.all });
-      const previousEmails = queryClient.getQueriesData({ queryKey: emailKeys.lists() });
+      const previousEmails = queryClient.getQueriesData({
+        queryKey: emailKeys.lists(),
+      });
 
       // Optimistically update for infinite query
-      queryClient.setQueriesData<{ pages: Array<{ emails: Email[]; pagination: any }> }>(
-        { queryKey: emailKeys.lists() },
-        (old) => {
-          if (!old?.pages) return old;
-          return {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              emails: page.emails.map((email) =>
-                email.id === emailId ? { ...email, starred } : email
-              ),
-            })),
-          };
-        }
-      );
+      queryClient.setQueriesData<{
+        pages: Array<{ emails: Email[]; pagination: Record<string, unknown> }>;
+      }>({ queryKey: emailKeys.lists() }, (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            emails: page.emails.map((email) =>
+              email.id === emailId ? { ...email, starred } : email
+            ),
+          })),
+        };
+      });
 
       return { previousEmails };
     },
@@ -171,11 +195,11 @@ export const useStarEmailMutation = () => {
           queryClient.setQueryData(queryKey, data);
         });
       }
-      toast.error('Failed to update starred status');
+      toast.error("Failed to update starred status");
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
-      toast.success(data.starred ? 'Email starred' : 'Email unstarred');
+      toast.success(data.starred ? "Email starred" : "Email unstarred");
     },
   });
 };
@@ -187,14 +211,76 @@ export const useDeleteEmailMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (emailId: string) => emailService.modifyEmail(emailId, { delete: true }),
+    mutationFn: (emailId: string) =>
+      emailService.modifyEmail(emailId, { delete: true }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: emailKeys.all });
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
-      toast.success('Email moved to trash');
+      toast.success("Email moved to trash");
     },
     onError: () => {
-      toast.error('Failed to delete email');
+      toast.error("Failed to delete email");
+    },
+  });
+};
+
+/**
+ * Move email to different folder/status (for Kanban)
+ */
+export const useMoveEmailMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      emailId,
+      folder,
+    }: {
+      emailId: string;
+      folder: string;
+    }) => {
+      await emailService.moveEmail(emailId, folder);
+      return { emailId, folder };
+    },
+    onMutate: async ({ emailId, folder }) => {
+      await queryClient.cancelQueries({ queryKey: emailKeys.all });
+      const previousEmails = queryClient.getQueriesData({
+        queryKey: emailKeys.lists(),
+      });
+
+      // Optimistically update for infinite query
+      queryClient.setQueriesData<{
+        pages: Array<{ emails: Email[]; pagination: Record<string, unknown> }>;
+      }>({ queryKey: emailKeys.lists() }, (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            emails: page.emails.map((email) =>
+              email.id === emailId
+                ? {
+                    ...email,
+                    folder: folder as Email["folder"],
+                  }
+                : email
+            ),
+          })),
+        };
+      });
+
+      return { previousEmails };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousEmails) {
+        context.previousEmails.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      toast.error("Failed to move email");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
+      toast.success("Email moved successfully");
     },
   });
 };
@@ -210,10 +296,10 @@ export const useSendEmailMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: emailKeys.all });
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
-      toast.success('Email sent successfully');
+      toast.success("Email sent successfully");
     },
     onError: () => {
-      toast.error('Failed to send email');
+      toast.error("Failed to send email");
     },
   });
 };
