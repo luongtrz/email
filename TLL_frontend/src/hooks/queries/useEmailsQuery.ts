@@ -58,7 +58,8 @@ export const useInfiniteEmailsQuery = (
       return result;
     },
     getNextPageParam: (lastPage) => {
-      const { page, totalPages } = lastPage.pagination;
+      // const { page, totalPages } = lastPage.pagination;
+      const { page, totalPages } = lastPage.pagination as { page: number; totalPages: number };
       return page < totalPages ? page + 1 : undefined;
     },
     initialPageParam: 1,

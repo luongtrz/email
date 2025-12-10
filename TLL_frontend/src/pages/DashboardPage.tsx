@@ -20,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { ErrorMessage } from "../components/common";
 import { ComposeModal } from "../components/email/ComposeModal";
 import { EmailDetail } from "../components/email/EmailDetail";
+import { EmailDetailModal } from "../components/email/EmailDetailModal";
 import { EmailList } from "../components/email/EmailList";
 import { EmailListSkeleton } from "../components/email/EmailListSkeleton";
 import { FolderList } from "../components/email/FolderList";
@@ -43,6 +44,7 @@ import {
 } from "../hooks/queries/useEmailsQuery";
 
 // ========== OTHER CUSTOM HOOKS ==========
+import { useEmailNavigation } from "../hooks/useEmailNavigation";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
 import { useOutsideClick } from "../hooks/useOutsideClick";
 import { useResizable } from "../hooks/useResizable";
@@ -101,6 +103,19 @@ export const DashboardPage: React.FC = () => {
     [emailsData]
   );
 
+  // ========== EMAIL NAVIGATION (MODAL) ==========
+  const {
+    selectedEmail: modalSelectedEmail,
+    selectedIndex: modalSelectedIndex,
+    isOpen: isModalOpen,
+    canGoPrevious,
+    canGoNext,
+    openEmail: openEmailModal,
+    closeModal,
+    goToNext,
+    goToPrevious,
+  } = useEmailNavigation({ emails });
+
   // ========== RESIZABLE PANEL ==========
   const {
     width: emailListWidth,
@@ -139,8 +154,15 @@ export const DashboardPage: React.FC = () => {
     async (emailId: string) => {
       const email = emails.find((e) => e.id === emailId);
       if (email) {
-        setSelectedEmail(email);
-        setShowMobileDetail(true);
+        // Traditional view: set selected email for side panel (old behavior)
+        // Kanban view: open modal for quick navigation
+        if (viewMode === "traditional") {
+          setSelectedEmail(email);
+          setShowMobileDetail(true);
+        } else {
+          // Kanban: open modal
+          openEmailModal(email);
+        }
 
         // Mark as read with optimistic update
         if (!email.read) {
@@ -148,7 +170,7 @@ export const DashboardPage: React.FC = () => {
         }
       }
     },
-    [emails, markReadMutation]
+    [emails, markReadMutation, viewMode, openEmailModal]
   );
 
   // ========== KANBAN EMAIL SELECTION HANDLER ==========
@@ -156,13 +178,14 @@ export const DashboardPage: React.FC = () => {
     (email: Email) => {
       setSelectedEmail(email);
       setShowMobileDetail(true);
+      openEmailModal(email);
 
       // Mark as read with optimistic update
       if (!email.read) {
         markReadMutation.mutate({ emailId: email.id, read: true });
       }
     },
-    [markReadMutation]
+    [markReadMutation, openEmailModal]
   );
 
   // ========== EMAIL ACTIONS ==========
@@ -697,31 +720,6 @@ export const DashboardPage: React.FC = () => {
         )}
       </div>
 
-      {/* Email Detail Panel for Kanban View */}
-      {viewMode === "kanban" && (
-        <div
-          className={`flex-1 bg-white overflow-y-auto ${
-            !showMobileDetail && "hidden lg:block"
-          }`}
-        >
-          {selectedEmail ? (
-            <EmailDetail
-              email={selectedEmail}
-              onReply={handleReply}
-              onForward={handleForward}
-              onClose={handleBackToList}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <Mail className="w-24 h-24 mx-auto mb-4 opacity-20" />
-                <p className="text-lg">Select an email to read</p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Compose Modal */}
       {showCompose && (
         <ComposeModal
@@ -771,6 +769,27 @@ export const DashboardPage: React.FC = () => {
             : "This action cannot be undone. The email will be moved to trash."
         }
       />
+
+      {/* Email Detail Modal - For Kanban View */}
+      {viewMode === "kanban" && (
+        <EmailDetailModal
+          email={modalSelectedEmail}
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          onEmailUpdated={() => {
+            refetchEmails();
+            refetchFolders();
+          }}
+          onReply={handleReply}
+          onForward={handleForward}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={goToPrevious}
+          onNext={goToNext}
+          currentIndex={modalSelectedIndex}
+          totalEmails={emails.length}
+        />
+      )}
 
       {/* Floating Compose Button - Mobile */}
       <button
