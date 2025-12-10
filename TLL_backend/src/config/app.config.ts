@@ -30,4 +30,8 @@ export default registerAs('app', () => ({
       'https://www.googleapis.com/auth/gmail.send',
     ],
   },
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY || '',
+    model: process.env.GEMINI_MODEL || 'gemini-flash-latest',
+  },
 }));

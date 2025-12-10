@@ -18,6 +18,7 @@ import { entities } from './database/entities';
 // Modules
 import { AuthModule } from './modules/auth/auth.module';
 import { EmailsModule } from './modules/emails/emails.module';
+import { KanbanEmailsModule } from './modules/kanban/kanban.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { EmailsModule } from './modules/emails/emails.module';
     }),
     AuthModule,
     EmailsModule,
+    KanbanEmailsModule,
   ],
   providers: [
     {
