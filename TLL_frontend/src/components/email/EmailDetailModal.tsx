@@ -4,9 +4,11 @@ import { EmailDetailHeader } from "./detail/EmailDetailHeader";
 import { EmailDetailSender } from "./detail/EmailDetailSender";
 import { EmailDetailBody } from "./detail/EmailDetailBody";
 import { EmailDetailAttachments } from "./detail/EmailDetailAttachments";
+import { EmailSummaryCard } from "./EmailSummaryCard";
 import type { Email } from "../../types/email.types";
 import { emailService } from "../../services/email.service";
 import toast from "react-hot-toast";
+import { Sparkles, X } from "lucide-react";
 
 interface EmailDetailModalProps {
   email: Email | null;
@@ -41,6 +43,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -173,7 +176,9 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
       {/* Modal */}
       <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
         <div
-          className="bg-white rounded-lg shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col"
+          className={`bg-white rounded-lg shadow-2xl flex flex-col transition-all duration-300 ${
+            isAiSidebarOpen ? "w-[95vw] max-w-[1400px]" : "w-full max-w-5xl"
+          } max-h-[90vh]`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header with Navigation */}
@@ -239,60 +244,86 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
               )}
             </div>
 
-            {/* Close Button */}
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg hover:bg-gray-200 text-gray-700 transition-colors"
-              title="Close (ESC)"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {/* Right side buttons */}
+            <div className="flex items-center gap-2">
+              {/* Gemini AI Button */}
+              <button
+                onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)}
+                className={`p-2 rounded-lg transition-all ${
+                  isAiSidebarOpen
+                    ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                    : "hover:bg-gray-200 text-gray-700 hover:text-purple-600"
+                }`}
+                title="AI (Powered by Gemini)"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+                <Sparkles className="w-5 h-5" />
+              </button>
+
+              {/* Close Button */}
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg hover:bg-gray-200 text-gray-700 transition-colors"
+                title="Close (ESC)"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
-          {/* Email Content */}
+          {/* Email Content - Two column layout with AI sidebar */}
           {email ? (
-            <div className="flex-1 overflow-hidden flex flex-col">
-              <EmailDetailHeader
-                email={email}
-                isActionLoading={isActionLoading}
-                onArchive={handleArchive}
-                onDelete={() => setDeleteModalOpen(true)}
-                onStar={handleStar}
-                onReply={onReply}
-                onForward={onForward}
-                onClose={undefined} // Don't show close button in header since we have it in modal header
-              />
+            <div className="flex-1 overflow-hidden flex">
+              {/* Main Email Content */}
+              <div className="flex-1 overflow-hidden flex flex-col">
+                <EmailDetailHeader
+                  email={email}
+                  isActionLoading={isActionLoading}
+                  onArchive={handleArchive}
+                  onDelete={() => setDeleteModalOpen(true)}
+                  onStar={handleStar}
+                  onReply={onReply}
+                  onForward={onForward}
+                  onClose={undefined} // Don't show close button in header since we have it in modal header
+                />
 
-              <div className="flex-1 overflow-y-auto bg-gray-50">
-                <div className="max-w-4xl mx-auto p-4 sm:p-6">
-                  <h1 className="text-xl sm:text-2xl font-normal text-gray-900 mb-4">
-                    {email.subject}
-                  </h1>
+                <div className="flex-1 overflow-y-auto bg-gray-50">
+                  <div className="max-w-4xl mx-auto p-4 sm:p-6">
+                    <h1 className="text-xl sm:text-2xl font-normal text-gray-900 mb-4">
+                      {email.subject}
+                    </h1>
 
-                  <EmailDetailSender email={email} />
+                    <EmailDetailSender email={email} />
 
-                  {email.attachments && email.attachments.length > 0 && (
-                    <EmailDetailAttachments
-                      attachments={email.attachments}
-                      onDownload={handleDownloadAttachment}
-                      isLoading={isActionLoading}
-                    />
-                  )}
+                    {email.attachments && email.attachments.length > 0 && (
+                      <EmailDetailAttachments
+                        attachments={email.attachments}
+                        onDownload={handleDownloadAttachment}
+                        isLoading={isActionLoading}
+                      />
+                    )}
 
-                  <EmailDetailBody body={email.body} />
+                    <EmailDetailBody body={email.body} />
+                  </div>
                 </div>
+              </div>
+
+              {/* AI Sidebar - Slides in from right */}
+              <div
+                className={`transition-all duration-300 ease-in-out overflow-y-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-l-2 border-purple-300 ${
+                  isAiSidebarOpen ? "w-96" : "w-0"
+                }`}
+              >
+                {isAiSidebarOpen && (
+                  <div className="w-96 h-full p-4">
+                    <div className="sticky top-0 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 pb-2 mb-4 border-b-2 border-purple-300 z-10">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-purple-600" />
+                        <h3 className="font-semibold text-gray-800">AI Space</h3>
+                      </div>
+                    </div>
+                    <EmailSummaryCard emailId={email.id} summary={email.aiSummary} />
+                  </div>
+                )}
               </div>
             </div>
           ) : (

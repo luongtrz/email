@@ -30,6 +30,7 @@ export interface Email {
     mimeType: string;
     size: string;
   }[];
+  aiSummary?: string | null; // AI-generated summary from backend
 }
 
 export interface Folder {
