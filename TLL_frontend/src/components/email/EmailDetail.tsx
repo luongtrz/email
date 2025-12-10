@@ -35,7 +35,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
       toast.success("Email archived");
       onEmailUpdated?.();
       onClose?.();
-    } catch (error) {
+    } catch {
       toast.error("Failed to archive email");
     } finally {
       setIsActionLoading(false);
@@ -49,7 +49,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
       await emailService.modifyEmail(email.id, { star: !email.starred });
       toast.success(email.starred ? "Removed star" : "Starred");
       onEmailUpdated?.();
-    } catch (error) {
+    } catch {
       toast.error("Failed to update star");
     } finally {
       setIsActionLoading(false);
@@ -59,7 +59,10 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
   const handleDownloadAttachment = async (attachmentId: string) => {
     if (!email) return;
     try {
-      const blob = await emailService.downloadAttachment(attachmentId, email.id);
+      const blob = await emailService.downloadAttachment(
+        attachmentId,
+        email.id
+      );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -68,7 +71,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) {
+    } catch {
       toast.error("Failed to download attachment");
     }
   };
@@ -82,7 +85,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
       setDeleteModalOpen(false);
       onEmailUpdated?.();
       onClose?.();
-    } catch (error) {
+    } catch {
       toast.error("Failed to delete email");
     } finally {
       setIsDeleting(false);

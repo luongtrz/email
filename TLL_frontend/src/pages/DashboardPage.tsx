@@ -1,43 +1,61 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
 import {
+  ChevronDown,
+  LogOut,
+  Mail,
+  MailOpen,
   Menu,
   Search,
-  Mail,
-  X,
+  Sparkles,
   Trash2,
-  MailOpen,
-  LogOut,
-  ChevronDown,
+  X,
 } from "lucide-react";
-import { useAuthStore } from "../store/auth.store";
-import { FolderList } from "../components/email/FolderList";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import { ErrorMessage } from "../components/common";
+import { ComposeModal } from "../components/email/ComposeModal";
+import { EmailDetail } from "../components/email/EmailDetail";
+import { EmailDetailModal } from "../components/email/EmailDetailModal";
 import { EmailList } from "../components/email/EmailList";
 import { EmailListSkeleton } from "../components/email/EmailListSkeleton";
-import { EmailDetail } from "../components/email/EmailDetail";
-import { ComposeModal } from "../components/email/ComposeModal";
+import { EmailSummaryCard } from "../components/email/EmailSummaryCard";
+import { FolderList } from "../components/email/FolderList";
+import { KanbanBoard } from "../components/kanban/KanbanBoard";
+import { KanbanBoardSkeleton } from "../components/kanban/KanbanBoardSkeleton";
 import { DeleteConfirmModal } from "../components/modals/DeleteConfirmModal";
-import { ErrorMessage } from "../components/common";
+import { ViewToggle } from "../components/ViewToggle";
+import { useAuthStore } from "../store/auth.store";
+import { useDashboardStore } from "../store/dashboard.store";
 import type { Email } from "../types/email.types";
+import { DEFAULT_KANBAN_COLUMNS } from "../types/kanban.types";
 
 // ========== REACT QUERY HOOKS ==========
 import {
+  useDeleteEmailMutation,
   useInfiniteEmailsQuery,
   useMailboxesQuery,
   useMarkEmailReadMutation,
+  useMoveEmailMutation,
   useStarEmailMutation,
-  useDeleteEmailMutation,
 } from "../hooks/queries/useEmailsQuery";
 
 // ========== OTHER CUSTOM HOOKS ==========
-import { useResizable } from "../hooks/useResizable";
+import { useEmailNavigation } from "../hooks/useEmailNavigation";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
 import { useOutsideClick } from "../hooks/useOutsideClick";
+import { useResizable } from "../hooks/useResizable";
 
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuthStore();
+  const { viewMode, toggleViewMode } = useDashboardStore();
   const navigate = useNavigate();
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // ========== BASIC STATE ==========
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
@@ -58,6 +76,7 @@ export const DashboardPage: React.FC = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [emailToDelete, setEmailToDelete] = useState<string | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false);
 
   // ========== REACT QUERY HOOKS ==========
   const {
@@ -79,9 +98,26 @@ export const DashboardPage: React.FC = () => {
   const markReadMutation = useMarkEmailReadMutation();
   const starMutation = useStarEmailMutation();
   const deleteMutation = useDeleteEmailMutation();
+  const moveMutation = useMoveEmailMutation();
 
   // Extract emails from infinite query data
-  const emails = emailsData?.pages.flatMap((page) => page.emails) || [];
+  const emails = useMemo(
+    () => emailsData?.pages.flatMap((page) => page.emails) || [],
+    [emailsData]
+  );
+
+  // ========== EMAIL NAVIGATION (MODAL) ==========
+  const {
+    selectedEmail: modalSelectedEmail,
+    selectedIndex: modalSelectedIndex,
+    isOpen: isModalOpen,
+    canGoPrevious,
+    canGoNext,
+    openEmail: openEmailModal,
+    closeModal,
+    goToNext,
+    goToPrevious,
+  } = useEmailNavigation({ emails });
 
   // ========== RESIZABLE PANEL ==========
   const {
@@ -98,18 +134,38 @@ export const DashboardPage: React.FC = () => {
   const userMenuRef = useOutsideClick(() => setShowUserMenu(false));
 
   // ========== GMAIL CONNECTION CHECK ==========
-  const gmailNotConnected =
-    (emailsError as any)?.response?.data?.message?.includes(
-      "Gmail account not connected"
-    ) || false;
+  const checkGmailConnection = useCallback((): boolean => {
+    if (!emailsError) return false;
+    try {
+      const errorObj = emailsError as unknown as Record<string, unknown>;
+      const response = errorObj?.response as Record<string, unknown>;
+      const data = response?.data as Record<string, unknown>;
+      const message = data?.message as string;
+      return (
+        typeof message === "string" &&
+        message.includes("Gmail account not connected")
+      );
+    } catch {
+      return false;
+    }
+  }, [emailsError]);
+
+  const isGmailNotConnected = checkGmailConnection();
 
   // ========== EMAIL SELECTION HANDLER ==========
   const handleEmailSelect = useCallback(
     async (emailId: string) => {
       const email = emails.find((e) => e.id === emailId);
       if (email) {
-        setSelectedEmail(email);
-        setShowMobileDetail(true);
+        // Traditional view: set selected email for side panel (old behavior)
+        // Kanban view: open modal for quick navigation
+        if (viewMode === "traditional") {
+          setSelectedEmail(email);
+          setShowMobileDetail(true);
+        } else {
+          // Kanban: open modal
+          openEmailModal(email);
+        }
 
         // Mark as read with optimistic update
         if (!email.read) {
@@ -117,7 +173,22 @@ export const DashboardPage: React.FC = () => {
         }
       }
     },
-    [emails, markReadMutation]
+    [emails, markReadMutation, viewMode, openEmailModal]
+  );
+
+  // ========== KANBAN EMAIL SELECTION HANDLER ==========
+  const handleKanbanCardClick = useCallback(
+    (email: Email) => {
+      setSelectedEmail(email);
+      setShowMobileDetail(true);
+      openEmailModal(email);
+
+      // Mark as read with optimistic update
+      if (!email.read) {
+        markReadMutation.mutate({ emailId: email.id, read: true });
+      }
+    },
+    [markReadMutation, openEmailModal]
   );
 
   // ========== EMAIL ACTIONS ==========
@@ -131,14 +202,11 @@ export const DashboardPage: React.FC = () => {
     [emails, starMutation]
   );
 
-  const handleDeleteEmail = useCallback(
-    (emailId: string) => {
-      setEmailToDelete(emailId);
-      setIsBulkDelete(false);
-      setDeleteModalOpen(true);
-    },
-    []
-  );
+  const handleDeleteEmail = useCallback((emailId: string) => {
+    setEmailToDelete(emailId);
+    setIsBulkDelete(false);
+    setDeleteModalOpen(true);
+  }, []);
 
   const handleBulkDelete = useCallback(() => {
     if (selectedEmails.size === 0) return;
@@ -209,16 +277,21 @@ export const DashboardPage: React.FC = () => {
     setShowCompose(true);
   }, []);
 
-  // ========== FOLDER CHANGE HANDLER ==========
-  const handleFolderChange = useCallback(
-    (folderId: string) => {
-      setActiveFolder(folderId);
-      setSelectedEmail(null);
-      setSelectedEmails(new Set());
-      setShowMobileMenu(false);
+  // ========== EMAIL MOVE HANDLER (KANBAN) ==========
+  const handleEmailMove = useCallback(
+    async (emailId: string, newFolder: string) => {
+      moveMutation.mutate({ emailId, folder: newFolder });
     },
-    []
+    [moveMutation]
   );
+
+  // ========== FOLDER CHANGE HANDLER ==========
+  const handleFolderChange = useCallback((folderId: string) => {
+    setActiveFolder(folderId);
+    setSelectedEmail(null);
+    setSelectedEmails(new Set());
+    setShowMobileMenu(false);
+  }, []);
 
   // ========== SEARCH HANDLER ==========
   const handleSearch = useCallback((e: React.FormEvent) => {
@@ -269,19 +342,62 @@ export const DashboardPage: React.FC = () => {
     onToggleStar: handleToggleStar,
   });
 
+  // ========== KEYBOARD SHORTCUTS ==========
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K or Cmd+K to toggle view
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        toggleViewMode();
+      }
+      // Ctrl+N or Cmd+N to compose new email
+      if ((e.ctrlKey || e.metaKey) && e.key === "n") {
+        e.preventDefault();
+        setComposeMode({ type: "new" });
+        setShowCompose(true);
+      }
+      // Ctrl+F or Cmd+F to focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      // Escape to close modals/details
+      if (e.key === "Escape") {
+        if (showCompose) {
+          setShowCompose(false);
+          setComposeMode({ type: "new" });
+        }
+        if (showMobileDetail) {
+          setShowMobileDetail(false);
+        }
+        if (deleteModalOpen) {
+          setDeleteModalOpen(false);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [toggleViewMode, showCompose, showMobileDetail, deleteModalOpen]);
+
   // ========== AUTO-LOGOUT ON AUTH ERROR ==========
   useEffect(() => {
-    if (foldersError && !gmailNotConnected) {
-      const error = foldersError as any;
-      if (error?.response?.status === 401) {
-        logout();
-        navigate("/login", { replace: true });
+    if (foldersError && !isGmailNotConnected) {
+      try {
+        const error = foldersError as unknown as Record<string, unknown>;
+        const response = error?.response as Record<string, unknown>;
+        if (response?.status === 401) {
+          logout();
+          navigate("/login", { replace: true });
+        }
+      } catch {
+        // Ignore errors in error handling
       }
     }
-  }, [foldersError, gmailNotConnected, logout, navigate]);
+  }, [foldersError, isGmailNotConnected, logout, navigate]);
 
   // ========== ERROR DISPLAY ==========
-  if (foldersError && !gmailNotConnected) {
+  if (foldersError && !isGmailNotConnected) {
     return (
       <div className="h-screen flex items-center justify-center">
         <ErrorMessage
@@ -293,7 +409,7 @@ export const DashboardPage: React.FC = () => {
     );
   }
 
-  if (emailsError && !gmailNotConnected) {
+  if (emailsError && !isGmailNotConnected) {
     return (
       <div className="h-screen flex items-center justify-center">
         <ErrorMessage
@@ -352,14 +468,20 @@ export const DashboardPage: React.FC = () => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Search mail..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setSearchQuery(e.target.value)
+                }
                 className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
               />
             </div>
           </form>
+
+          {/* View Toggle */}
+          <ViewToggle className="ml-4 hidden sm:flex" />
 
           {/* User Menu */}
           <div className="relative" ref={userMenuRef}>
@@ -368,10 +490,12 @@ export const DashboardPage: React.FC = () => {
               className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                {(user as any)?.fullName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || "U"}
+                {user?.name?.charAt(0).toUpperCase() ||
+                  user?.email?.charAt(0).toUpperCase() ||
+                  "U"}
               </div>
               <span className="text-sm font-medium text-gray-700 hidden md:inline">
-                {(user as any)?.fullName || user?.email}
+                {user?.name || user?.email}
               </span>
               <ChevronDown className="w-4 h-4 text-gray-500 hidden md:inline" />
             </button>
@@ -380,7 +504,7 @@ export const DashboardPage: React.FC = () => {
               <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                 <div className="px-4 py-3 border-b border-gray-100">
                   <p className="text-sm font-medium text-gray-900">
-                    {(user as any)?.fullName || user?.email}
+                    {user?.name || user?.email}
                   </p>
                   <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
@@ -440,112 +564,202 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* Email List */}
-        <div
-          className={`relative flex-shrink-0 flex flex-col bg-white border-r border-gray-200 ${
-            showMobileDetail ? "hidden" : "flex"
-          } lg:flex`}
-          style={{ width: `${emailListWidth}px` }}
-        >
-          {/* Bulk Actions Bar */}
-          {selectedEmails.size > 0 && (
-            <div className="flex items-center justify-center gap-4 px-4 py-2 bg-blue-50 border-b border-blue-100">
-              <span className="text-sm font-medium text-blue-900">
-                {selectedEmails.size} selected
-              </span>
-              <button
-                onClick={handleMarkBulkAsRead}
-                className="p-2 hover:bg-blue-100 rounded transition-colors"
-                title="Mark as read"
-              >
-                <MailOpen className="w-5 h-5 text-blue-700" />
-              </button>
-              <button
-                onClick={handleBulkDelete}
-                className="p-2 hover:bg-blue-100 rounded transition-colors"
-                title="Delete"
-              >
-                <Trash2 className="w-5 h-5 text-blue-700" />
-              </button>
-              <button
-                onClick={() => setSelectedEmails(new Set())}
-                className="p-2 hover:bg-blue-100 rounded transition-colors"
-                title="Clear selection"
-              >
-                <X className="w-5 h-5 text-blue-700" />
-              </button>
-            </div>
-          )}
+        {/* Email List / Kanban View */}
+        {viewMode === "traditional" ? (
+          // Traditional List View
+          <>
+            <div
+              className={`relative flex-shrink-0 flex flex-col bg-white border-r border-gray-200 ${
+                showMobileDetail ? "hidden" : "flex"
+              } lg:flex`}
+              style={{ width: `${emailListWidth}px` }}
+            >
+              {/* Bulk Actions Bar */}
+              {selectedEmails.size > 0 && (
+                <div className="flex items-center justify-center gap-4 px-4 py-2 bg-blue-50 border-b border-blue-100">
+                  <span className="text-sm font-medium text-blue-900">
+                    {selectedEmails.size} selected
+                  </span>
+                  <button
+                    onClick={handleMarkBulkAsRead}
+                    className="p-2 hover:bg-blue-100 rounded transition-colors"
+                    title="Mark as read"
+                  >
+                    <MailOpen className="w-5 h-5 text-blue-700" />
+                  </button>
+                  <button
+                    onClick={handleBulkDelete}
+                    className="p-2 hover:bg-blue-100 rounded transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-5 h-5 text-blue-700" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedEmails(new Set())}
+                    className="p-2 hover:bg-blue-100 rounded transition-colors"
+                    title="Clear selection"
+                  >
+                    <X className="w-5 h-5 text-blue-700" />
+                  </button>
+                </div>
+              )}
 
-          {/* Email List Content */}
-          <div className="flex-1 overflow-y-auto">
+              {/* Email List Content */}
+              <div className="flex-1 overflow-y-auto">
+                {isLoadingEmails ? (
+                  <EmailListSkeleton />
+                ) : isGmailNotConnected ? (
+                  <div className="p-8 text-center">
+                    <p className="text-gray-600 mb-4">
+                      Gmail account not connected
+                    </p>
+                    <a
+                      href="/auth/google/url"
+                      className="text-blue-600 hover:underline"
+                    >
+                      Connect Gmail
+                    </a>
+                  </div>
+                ) : emails.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <Mail className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium">No emails found</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {searchQuery
+                        ? "Try a different search query"
+                        : "This folder is empty"}
+                    </p>
+                  </div>
+                ) : (
+                  <EmailList
+                    emails={emails}
+                    selectedEmailId={selectedEmail?.id || null}
+                    onEmailSelect={handleEmailSelect}
+                    onToggleStar={handleToggleStar}
+                    selectedEmails={selectedEmails}
+                    onEmailToggle={handleEmailCheckbox}
+                    isLoadingMore={isFetchingNextPage}
+                    onLoadMore={hasNextPage ? handleLoadMore : undefined}
+                  />
+                )}
+              </div>
+
+              {/* Resize Handle */}
+              <div
+                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 transition-colors"
+                onMouseDown={handleMouseDown}
+              />
+            </div>
+
+            {/* Email Detail */}
+            <div
+              className={`flex-1 bg-white overflow-hidden flex ${
+                !showMobileDetail && "hidden lg:flex"
+              }`}
+            >
+              {/* Main Email Detail Content */}
+              <div className="flex-1 overflow-y-auto">
+                {selectedEmail ? (
+                  <>
+                    {/* AI Button - Top Right Corner */}
+                    <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-2 flex justify-end">
+                      <button
+                        onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)}
+                        className={`p-2 rounded-lg transition-all ${
+                          isAiSidebarOpen
+                            ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                            : "hover:bg-gray-100 text-gray-700 hover:text-purple-600"
+                        }`}
+                        title="AI Summary (Powered by Gemini)"
+                      >
+                        <Sparkles className="w-5 h-5" />
+                      </button>
+                    </div>
+                    
+                    <EmailDetail
+                      email={selectedEmail}
+                      onReply={handleReply}
+                      onForward={handleForward}
+                      onClose={handleBackToList}
+                    />
+                  </>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-400">
+                    <div className="text-center">
+                      <Mail className="w-24 h-24 mx-auto mb-4 opacity-20" />
+                      <p className="text-lg">Select an email to read</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* AI Sidebar */}
+              <div
+                className={`transition-all duration-300 ease-in-out overflow-y-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-l-2 border-purple-300 ${
+                  isAiSidebarOpen && selectedEmail ? "w-96" : "w-0"
+                }`}
+              >
+                {isAiSidebarOpen && selectedEmail && (
+                  <div className="w-96 h-full p-4">
+                    <div className="sticky top-0 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 pb-2 mb-4 border-b-2 border-purple-300 z-10">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-purple-600" />
+                        <h3 className="font-semibold text-gray-800">AI Space</h3>
+                      </div>
+                    </div>
+                    <EmailSummaryCard emailId={selectedEmail.id} summary={selectedEmail.aiSummary} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          // Kanban View
+          <div
+            className={`flex-1 bg-white overflow-hidden ${
+              showMobileDetail ? "hidden" : "flex"
+            } lg:flex flex-col`}
+          >
             {isLoadingEmails ? (
-              <EmailListSkeleton />
-            ) : gmailNotConnected ? (
-              <div className="p-8 text-center">
-                <p className="text-gray-600 mb-4">
-                  Gmail account not connected
-                </p>
-                <a
-                  href="/auth/google/url"
-                  className="text-blue-600 hover:underline"
-                >
-                  Connect Gmail
-                </a>
+              <KanbanBoardSkeleton />
+            ) : isGmailNotConnected ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-gray-600 mb-4">
+                    Gmail account not connected
+                  </p>
+                  <a
+                    href="/auth/google/url"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Connect Gmail
+                  </a>
+                </div>
               </div>
             ) : emails.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <Mail className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium">No emails found</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  {searchQuery
-                    ? "Try a different search query"
-                    : "This folder is empty"}
-                </p>
+              <div className="flex-1 flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                  <Mail className="w-24 h-24 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No emails found</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    {searchQuery
+                      ? "Try a different search query"
+                      : "This folder is empty"}
+                  </p>
+                </div>
               </div>
             ) : (
-              <EmailList
+              <KanbanBoard
                 emails={emails}
+                columns={DEFAULT_KANBAN_COLUMNS}
+                onCardClick={handleKanbanCardClick}
+                onCardStar={handleToggleStar}
+                onEmailMove={handleEmailMove}
                 selectedEmailId={selectedEmail?.id || null}
-                onEmailSelect={handleEmailSelect}
-                onToggleStar={handleToggleStar}
-                selectedEmails={selectedEmails}
-                onEmailToggle={handleEmailCheckbox}
-                isLoadingMore={isFetchingNextPage}
-                onLoadMore={hasNextPage ? handleLoadMore : undefined}
               />
             )}
           </div>
-
-          {/* Resize Handle */}
-          <div
-            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 transition-colors"
-            onMouseDown={handleMouseDown}
-          />
-        </div>
-
-        {/* Email Detail */}
-        <div
-          className={`flex-1 bg-white overflow-y-auto ${
-            !showMobileDetail && "hidden lg:block"
-          }`}
-        >
-          {selectedEmail ? (
-            <EmailDetail
-              email={selectedEmail}
-              onReply={handleReply}
-              onForward={handleForward}
-              onClose={handleBackToList}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <Mail className="w-24 h-24 mx-auto mb-4 opacity-20" />
-                <p className="text-lg">Select an email to read</p>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Compose Modal */}
@@ -597,6 +811,27 @@ export const DashboardPage: React.FC = () => {
             : "This action cannot be undone. The email will be moved to trash."
         }
       />
+
+      {/* Email Detail Modal - For Kanban View */}
+      {viewMode === "kanban" && (
+        <EmailDetailModal
+          email={modalSelectedEmail}
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          onEmailUpdated={() => {
+            refetchEmails();
+            refetchFolders();
+          }}
+          onReply={handleReply}
+          onForward={handleForward}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={goToPrevious}
+          onNext={goToNext}
+          currentIndex={modalSelectedIndex}
+          totalEmails={emails.length}
+        />
+      )}
 
       {/* Floating Compose Button - Mobile */}
       <button

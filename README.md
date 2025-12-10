@@ -17,6 +17,7 @@ A full-stack **React Email Client** application with **Gmail API integration** (
   - [Google OAuth Setup](#google-oauth-setup)
   - [Backend Setup](#backend-setup)
   - [Frontend Setup](#frontend-setup)
+- [Kanban View](#-kanban-view) **NEW**
 - [Deployed URLs](#-deployed-urls)
 - [API Endpoints](#-api-endpoints)
 - [Token Storage & Security](#-token-storage--security)
@@ -65,6 +66,16 @@ A full-stack **React Email Client** application with **Gmail API integration** (
 - **Folder Navigation** (20%) - Inbox, Sent, Drafts, Trash with counts
 - **Email List** (40%) - Paginated list with sender, subject, preview
 - **Email Detail** (40%) - Full content with attachments and actions
+
+### ✅ Kanban View (NEW)
+- **Drag-and-Drop** - Move emails between status columns
+- **Multiple Layouts** - Toggle between traditional list and Kanban board
+- **Status Columns** - Inbox, To Do, In Progress, Done, Snoozed
+- **Persistent Preferences** - User view choice saved in localStorage
+- **Responsive Design** - Works seamlessly on desktop and mobile
+- **Quick Actions** - Star, archive, delete directly from cards
+- **Keyboard Shortcuts** - Ctrl/Cmd+K to toggle, Ctrl/Cmd+N to compose
+- See [KANBAN_IMPLEMENTATION.md](./docs/KANBAN_IMPLEMENTATION.md) for details
 
 ### ✅ User Experience
 - **Responsive Design** - Desktop (3 columns) → Mobile (stack navigation)
@@ -265,6 +276,45 @@ pnpm dev
 ```
 
 Frontend will be available at `http://localhost:5173`
+
+---
+
+## 📊 Kanban View
+
+The application now supports a **Kanban board layout** for email organization with drag-and-drop functionality.
+
+### Features
+
+- **Toggle View**: Switch between traditional list and Kanban layouts (Ctrl/Cmd + K)
+- **Drag-and-Drop**: Move emails between status columns
+- **Status Columns**: Inbox, To Do, In Progress, Done, Snoozed
+- **Persistent Preferences**: View choice saved in localStorage
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+- **Quick Actions**: Star, archive, and delete emails from cards
+- **Keyboard Shortcuts**: See full list in usage guide
+
+### Getting Started with Kanban
+
+1. **Switch to Kanban View**
+   - Click the "Kanban" button in the header
+   - Or press `Ctrl+K` (Windows) / `Cmd+K` (Mac)
+
+2. **Organize Emails**
+   - Drag email cards to different columns
+   - Watch status update in real-time
+   - Your changes are saved automatically
+
+3. **Using Keyboard Shortcuts**
+   - `Ctrl/Cmd + K`: Toggle view
+   - `Ctrl/Cmd + N`: Compose new email
+   - `Ctrl/Cmd + F`: Focus search
+   - `Esc`: Close detail/modals
+
+### Documentation
+
+- **[KANBAN_IMPLEMENTATION.md](./docs/KANBAN_IMPLEMENTATION.md)** - Architecture and technical details
+- **[KANBAN_USAGE_GUIDE.md](./KANBAN_USAGE_GUIDE.md)** - User and developer guide
+- **[KANBAN_TEST_CHECKLIST.md](./KANBAN_TEST_CHECKLIST.md)** - Comprehensive testing checklist
 
 ---
 

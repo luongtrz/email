@@ -23,6 +23,13 @@ export const API_ENDPOINTS = {
     FORWARD: (id: string) => `/api/emails/${id}/forward`,
     ATTACHMENT: (attachmentId: string, messageId: string) => `/api/attachments/${attachmentId}?messageId=${messageId}`,
   },
+  KANBAN: {
+    EMAILS: '/api/kanban/emails',
+    EMAIL_DETAIL: (id: string) => `/api/kanban/emails/${id}/detail`,
+    UPDATE_STATUS: (id: string) => `/api/kanban/emails/${id}/status`,
+    SNOOZE: (id: string) => `/api/kanban/emails/${id}/snooze`,
+    SUMMARIZE: (id: string) => `/api/kanban/emails/${id}/summarize`,
+  },
   STUDENTS: {
     LIST: '/api/students',
     DETAIL: (id: string) => `/api/students/${id}`,

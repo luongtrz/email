@@ -18,8 +18,8 @@ export const emailService = {
     search?: string;
     page?: number;
     limit?: number;
-  }): Promise<{ emails: Email[]; pagination: any }> => {
-    const params: any = {};
+  }): Promise<{ emails: Email[]; pagination: Record<string, unknown> }> => {
+    const params: Record<string, unknown> = {};
     if (filters?.search) params.search = filters.search;
     if (filters?.page) params.page = filters.page;
     if (filters?.limit) params.limit = filters.limit;
@@ -47,14 +47,15 @@ export const emailService = {
   getEmailsByFolder: async (
     folderId: string,
     filters?: { search?: string; page?: number; limit?: number }
-  ): Promise<{ emails: Email[]; pagination: any }> => {
+  ): Promise<{ emails: Email[]; pagination: Record<string, unknown> }> => {
     return emailService.getEmails({ ...filters, folder: folderId });
   },
 
-  // Get single email by ID
+  // Get single email by ID (with AI summary from kanban metadata)
   getEmailById: async (id: string): Promise<Email | null> => {
     try {
-      const response = await apiClient.get(API_ENDPOINTS.EMAILS.DETAIL(id));
+      // Use kanban endpoint to get email with aiSummary
+      const response = await apiClient.get(API_ENDPOINTS.KANBAN.EMAIL_DETAIL(id));
       return response.data;
     } catch (error) {
       logger.error("Failed to fetch email", error, { emailId: id });
@@ -72,6 +73,7 @@ export const emailService = {
       unstar?: boolean;
       archive?: boolean;
       delete?: boolean;
+      moveToFolder?: string; // New: move email to different folder
     }
   ): Promise<void> => {
     await apiClient.post(API_ENDPOINTS.EMAILS.MODIFY(id), action);
@@ -82,10 +84,9 @@ export const emailService = {
     await emailService.modifyEmail(id, { markAsRead: true });
   },
 
-  // Toggle starred (legacy support)
-  toggleStar: async (id: string): Promise<void> => {
-    // Note: Backend modify endpoint handles toggle automatically
-    await emailService.modifyEmail(id, { star: true });
+  // Move email to different folder/status
+  moveEmail: async (id: string, folder: string): Promise<void> => {
+    await emailService.modifyEmail(id, { moveToFolder: folder });
   },
 
   // Send email
