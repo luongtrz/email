@@ -4,7 +4,6 @@ import {
   Param,
   Query,
   Post,
-  Patch,
   Body,
   UseGuards,
   Request,
@@ -22,11 +21,7 @@ import { ModifyEmailDto } from './dto/modify-email.dto';
 import { ReplyEmailDto } from './dto/reply-email.dto';
 import { ForwardEmailDto } from './dto/forward-email.dto';
 import { Email } from './interfaces/email.interface';
-import { KanbanEmail } from './interfaces/kanban-email.interface';
 import { GetDetailEmailsDto } from './dto/get-detail-emails.dto';
-import { UpdateStatusDto } from './dto/update-status.dto';
-import { SnoozeDto } from './dto/snooze.dto';
-import { SummarizeDto } from './dto/summarize.dto';
 
 @ApiTags('emails')
 @Controller()
@@ -140,66 +135,6 @@ export class EmailsController {
     res.setHeader('Content-Length', attachment.size);
 
     return res.send(attachment.data);
-  }
-
-  @Get('kanban/emails')
-  @ApiOperation({ summary: 'Get kanban emails merged with metadata' })
-  async getKanbanEmails(
-    @Request() req,
-    @Query() dto: GetEmailsDto,
-  ): Promise<{ emails: KanbanEmail[]; pagination: any }> {
-    return this.emailsService.getKanbanEmails(req.user.id, dto);
-  }
-
-  @Get('kanban/emails/:id/detail')
-  @ApiOperation({ summary: 'Get kanban email detail merged with metadata' })
-  async getKanbanEmailDetail(
-    @Request() req,
-    @Param('id') id: string,
-  ): Promise<KanbanEmail> {
-    return this.emailsService.getKanbanEmailDetail(req.user.id, id);
-  }
-
-  @Patch('kanban/emails/:id/status')
-  @ApiOperation({ summary: 'Update kanban card status' })
-  async updateStatus(
-    @Request() req,
-    @Param('id') id: string,
-    @Body() dto: UpdateStatusDto,
-  ) {
-    return this.emailsService.updateStatus(req.user.id, id, dto);
-  }
-
-  @Post('kanban/emails/:id/snooze')
-  @ApiOperation({ summary: 'Snooze an email and mark as SNOOZED' })
-  async snoozeEmail(
-    @Request() req,
-    @Param('id') id: string,
-    @Body() dto: SnoozeDto,
-  ) {
-    return this.emailsService.snoozeEmail(req.user.id, id, dto);
-  }
-
-  @Post('kanban/emails/restore-snoozed')
-  @ApiOperation({ summary: 'Restore emails whose snooze has expired' })
-  async restoreSnoozed(@Request() req) {
-    return this.emailsService.restoreSnoozed(req.user.id);
-  }
-
-  @Post('kanban/emails/:id/summarize')
-  @ApiOperation({ summary: 'Generate AI summary using Gemini' })
-  async summarizeEmail(
-    @Request() req,
-    @Param('id') id: string,
-    @Body() dto: SummarizeDto,
-  ) {
-    return this.emailsService.summarizeEmail(req.user.id, id, dto);
-  }
-
-  @Get('kanban/search')
-  @ApiOperation({ summary: 'Semantic search over emails (placeholder)' })
-  async semanticSearch(@Request() req, @Query('q') query: string) {
-    return this.emailsService.semanticSearch(req.user.id, query);
   }
 
   // Legacy endpoints for backward compatibility
