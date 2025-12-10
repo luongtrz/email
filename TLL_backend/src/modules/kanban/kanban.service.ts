@@ -85,7 +85,32 @@ export class KanbanEmailsService {
   private async generateSummaryWithGemini(text: string): Promise<string> {
     try {
       const model = this.getGeminiModel();
-      const prompt = `Summarize the following email content concisely:\n\n${text}`;
+      const prompt = `You are an intelligent email assistant. Analyze the following email and provide a well-structured HTML summary.
+
+Email content:
+${text}
+
+Please provide a summary in clean HTML format with the following structure:
+- Use <div> with appropriate styling classes
+- Use <strong> for important information (sender, subject, deadlines, action items)
+- Use <ul> and <li> for bullet points when listing items
+- Use <p> for paragraphs with proper spacing
+- Highlight urgent or important items with <span> tags
+- Use emojis where appropriate (📧 for email info, ⚡ for urgent, ✅ for action items, 📅 for dates)
+
+Structure your response like this:
+<div class="email-summary">
+  <p><strong>Main Topic:</strong> Brief description</p>
+  <p><strong>Key Points:</strong></p>
+  <ul>
+    <li>Point 1</li>
+    <li>Point 2</li>
+  </ul>
+  <p><strong>Action Items:</strong> What needs to be done (if any)</p>
+  <p><strong>Important Dates:</strong> Any mentioned dates or deadlines (if any)</p>
+</div>
+
+Important: Return ONLY the HTML content without any markdown code blocks or backticks. Start directly with <div>.`;
 
       const result = await model.generateContent(prompt);
 
@@ -97,7 +122,13 @@ export class KanbanEmailsService {
         throw new BadRequestException('Gemini did not return a summary');
       }
 
-      return summary;
+      // Clean up any potential markdown code blocks
+      let cleanSummary = summary
+        .replace(/```html\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+
+      return cleanSummary;
     } catch (error) {
       console.error('Error generating summary with Gemini:', error);
       throw new BadRequestException('Failed to generate summary with Gemini');

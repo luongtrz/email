@@ -51,10 +51,11 @@ export const emailService = {
     return emailService.getEmails({ ...filters, folder: folderId });
   },
 
-  // Get single email by ID
+  // Get single email by ID (with AI summary from kanban metadata)
   getEmailById: async (id: string): Promise<Email | null> => {
     try {
-      const response = await apiClient.get(API_ENDPOINTS.EMAILS.DETAIL(id));
+      // Use kanban endpoint to get email with aiSummary
+      const response = await apiClient.get(API_ENDPOINTS.KANBAN.EMAIL_DETAIL(id));
       return response.data;
     } catch (error) {
       logger.error("Failed to fetch email", error, { emailId: id });

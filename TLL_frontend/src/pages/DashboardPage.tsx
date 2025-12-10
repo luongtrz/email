@@ -5,6 +5,7 @@ import {
   MailOpen,
   Menu,
   Search,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import { EmailDetail } from "../components/email/EmailDetail";
 import { EmailDetailModal } from "../components/email/EmailDetailModal";
 import { EmailList } from "../components/email/EmailList";
 import { EmailListSkeleton } from "../components/email/EmailListSkeleton";
+import { EmailSummaryCard } from "../components/email/EmailSummaryCard";
 import { FolderList } from "../components/email/FolderList";
 import { KanbanBoard } from "../components/kanban/KanbanBoard";
 import { KanbanBoardSkeleton } from "../components/kanban/KanbanBoardSkeleton";
@@ -74,6 +76,7 @@ export const DashboardPage: React.FC = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [emailToDelete, setEmailToDelete] = useState<string | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false);
 
   // ========== REACT QUERY HOOKS ==========
   const {
@@ -650,25 +653,64 @@ export const DashboardPage: React.FC = () => {
 
             {/* Email Detail */}
             <div
-              className={`flex-1 bg-white overflow-y-auto ${
-                !showMobileDetail && "hidden lg:block"
+              className={`flex-1 bg-white overflow-hidden flex ${
+                !showMobileDetail && "hidden lg:flex"
               }`}
             >
-              {selectedEmail ? (
-                <EmailDetail
-                  email={selectedEmail}
-                  onReply={handleReply}
-                  onForward={handleForward}
-                  onClose={handleBackToList}
-                />
-              ) : (
-                <div className="h-full flex items-center justify-center text-gray-400">
-                  <div className="text-center">
-                    <Mail className="w-24 h-24 mx-auto mb-4 opacity-20" />
-                    <p className="text-lg">Select an email to read</p>
+              {/* Main Email Detail Content */}
+              <div className="flex-1 overflow-y-auto">
+                {selectedEmail ? (
+                  <>
+                    {/* AI Button - Top Right Corner */}
+                    <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-2 flex justify-end">
+                      <button
+                        onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)}
+                        className={`p-2 rounded-lg transition-all ${
+                          isAiSidebarOpen
+                            ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                            : "hover:bg-gray-100 text-gray-700 hover:text-purple-600"
+                        }`}
+                        title="AI Summary (Powered by Gemini)"
+                      >
+                        <Sparkles className="w-5 h-5" />
+                      </button>
+                    </div>
+                    
+                    <EmailDetail
+                      email={selectedEmail}
+                      onReply={handleReply}
+                      onForward={handleForward}
+                      onClose={handleBackToList}
+                    />
+                  </>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-400">
+                    <div className="text-center">
+                      <Mail className="w-24 h-24 mx-auto mb-4 opacity-20" />
+                      <p className="text-lg">Select an email to read</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* AI Sidebar */}
+              <div
+                className={`transition-all duration-300 ease-in-out overflow-y-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-l-2 border-purple-300 ${
+                  isAiSidebarOpen && selectedEmail ? "w-96" : "w-0"
+                }`}
+              >
+                {isAiSidebarOpen && selectedEmail && (
+                  <div className="w-96 h-full p-4">
+                    <div className="sticky top-0 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 pb-2 mb-4 border-b-2 border-purple-300 z-10">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-purple-600" />
+                        <h3 className="font-semibold text-gray-800">AI Space</h3>
+                      </div>
+                    </div>
+                    <EmailSummaryCard emailId={selectedEmail.id} summary={selectedEmail.aiSummary} />
+                  </div>
+                )}
+              </div>
             </div>
           </>
         ) : (

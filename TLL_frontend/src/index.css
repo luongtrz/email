@@ -10,3 +10,52 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* AI Summary Styling */
+.ai-summary-content {
+  line-height: 1.6;
+}
+
+.ai-summary-content p {
+  margin-bottom: 0.75rem;
+}
+
+.ai-summary-content p:last-child {
+  margin-bottom: 0;
+}
+
+.ai-summary-content strong {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.ai-summary-content ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style-type: disc;
+}
+
+.ai-summary-content li {
+  margin-bottom: 0.375rem;
+  color: #374151;
+}
+
+.ai-summary-content li:last-child {
+  margin-bottom: 0;
+}
+
+.ai-summary-content span {
+  display: inline;
+}
+
+.ai-summary-content .email-summary {
+  padding: 0;
+}
+
+.ai-summary-content div {
+  margin-bottom: 0.5rem;
+}
+
+.ai-summary-content div:last-child {
+  margin-bottom: 0;
+}
