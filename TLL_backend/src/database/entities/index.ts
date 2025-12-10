@@ -1,4 +1,4 @@
 import { User } from './user.entity';
-import { Email } from './email.entity';
+import { EmailMetadata } from './email-metadata.entity';
 
-export const entities = [User, Email];
+export const entities = [User, EmailMetadata];
