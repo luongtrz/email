@@ -1,13 +1,34 @@
 import type { Email } from "./email.types";
 
+// ============================================
+// BACKEND STATUS ENUM (must match backend)
+// ============================================
+
+/**
+ * KanbanEmailStatus enum values from backend
+ * @see TLL_backend/src/database/entities/email-metadata.entity.ts
+ */
+export const KanbanEmailStatus = {
+  INBOX: "INBOX",
+  TODO: "TODO",
+  IN_PROGRESS: "IN_PROGRESS",
+  DONE: "DONE",
+  SNOOZED: "SNOOZED",
+} as const;
+
+export type KanbanEmailStatusType = typeof KanbanEmailStatus[keyof typeof KanbanEmailStatus];
+
+// ============================================
+// FRONTEND TYPES
+// ============================================
+
 export interface KanbanColumn {
   id: string;
   title: string;
-  emailFolder: string; // Maps to email folder/status
+  status: KanbanEmailStatusType; // Backend status value
   color?: string;
   icon?: string;
   order: number;
-  isDefault: boolean;
 }
 
 export interface KanbanCard {
@@ -16,78 +37,70 @@ export interface KanbanCard {
   columnId: string;
 }
 
-// Default columns configuration
 export const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
   {
     id: "inbox",
     title: "Inbox",
-    emailFolder: "inbox",
-    color: "#3B82F6", // blue
+    status: KanbanEmailStatus.INBOX,
+    color: "#3B82F6",
     icon: "inbox",
     order: 0,
-    isDefault: true,
   },
   {
     id: "todo",
     title: "To Do",
-    emailFolder: "todo",
-    color: "#F59E0B", // amber
+    status: KanbanEmailStatus.TODO,
+    color: "#F59E0B",
     icon: "clipboard-list",
     order: 1,
-    isDefault: true,
   },
   {
     id: "in-progress",
     title: "In Progress",
-    emailFolder: "in-progress",
-    color: "#10B981", // emerald
+    status: KanbanEmailStatus.IN_PROGRESS,
+    color: "#10B981",
     icon: "clock",
     order: 2,
-    isDefault: true,
   },
   {
     id: "done",
     title: "Done",
-    emailFolder: "done",
-    color: "#8B5CF6", // violet
+    status: KanbanEmailStatus.DONE,
+    color: "#8B5CF6",
     icon: "check-circle",
     order: 3,
-    isDefault: true,
   },
   {
     id: "snoozed",
     title: "Snoozed",
-    emailFolder: "snoozed",
-    color: "#6B7280", // gray
+    status: KanbanEmailStatus.SNOOZED,
+    color: "#6B7280",
     icon: "moon",
     order: 4,
-    isDefault: true,
   },
 ];
 
-// Helper function to get column by email folder
-export const getColumnByFolder = (
-  columns: KanbanColumn[],
-  folder: string
-): KanbanColumn | undefined => {
-  return columns.find((col) => col.emailFolder === folder);
-};
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
 
-// Helper function to get emails for a specific column
-export const getEmailsForColumn = (
-  emails: Email[],
-  column: KanbanColumn
-): Email[] => {
-  return emails.filter((email) => email.folder === column.emailFolder);
-};
-
-// Helper function to create cards from emails
+/**
+ * Create Kanban cards from emails
+ * Maps email status (from Kanban API) to column
+ */
 export const createCardsFromEmails = (
   emails: Email[],
   columns: KanbanColumn[]
 ): KanbanCard[] => {
   return emails.map((email) => {
-    const column = getColumnByFolder(columns, email.folder);
+    // Get status from Kanban metadata
+    const emailStatus = (email as any).status as KanbanEmailStatusType | undefined;
+    
+    // Find matching column by status
+    const column = emailStatus
+      ? columns.find((col) => col.status === emailStatus)
+      : columns.find((col) => col.status === KanbanEmailStatus.INBOX); // Default to INBOX
+    
     return {
       id: email.id,
       email,

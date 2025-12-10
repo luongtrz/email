@@ -29,6 +29,7 @@ import { FolderList } from "../components/email/FolderList";
 import { KanbanBoard } from "../components/kanban/KanbanBoard";
 import { KanbanBoardSkeleton } from "../components/kanban/KanbanBoardSkeleton";
 import { DeleteConfirmModal } from "../components/modals/DeleteConfirmModal";
+import { SnoozeModal } from "../components/modals/SnoozeModal";
 import { ViewToggle } from "../components/ViewToggle";
 import { useAuthStore } from "../store/auth.store";
 import { useDashboardStore } from "../store/dashboard.store";
@@ -44,6 +45,13 @@ import {
   useMoveEmailMutation,
   useStarEmailMutation,
 } from "../hooks/queries/useEmailsQuery";
+
+import { 
+  useRestoreSnoozedMutation, 
+  useSnoozeEmailMutation,
+  useKanbanEmailsQuery,
+  useUpdateStatusMutation
+} from "../hooks/queries/useKanbanQuery";
 
 // ========== OTHER CUSTOM HOOKS ==========
 import { useEmailNavigation } from "../hooks/useEmailNavigation";
@@ -77,8 +85,11 @@ export const DashboardPage: React.FC = () => {
   const [emailToDelete, setEmailToDelete] = useState<string | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false);
+  const [snoozeModalOpen, setSnoozeModalOpen] = useState(false);
+  const [emailToSnooze, setEmailToSnooze] = useState<string | null>(null);
 
   // ========== REACT QUERY HOOKS ==========
+  // Use Kanban API when in Kanban view to get metadata (status, snoozeUntil)
   const {
     data: emailsData,
     isLoading: isLoadingEmails,
@@ -87,7 +98,9 @@ export const DashboardPage: React.FC = () => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteEmailsQuery(activeFolder, searchQuery);
+  } = viewMode === "kanban" 
+    ? useKanbanEmailsQuery(activeFolder, searchQuery)
+    : useInfiniteEmailsQuery(activeFolder, searchQuery);
 
   const {
     data: folders = [],
@@ -99,6 +112,9 @@ export const DashboardPage: React.FC = () => {
   const starMutation = useStarEmailMutation();
   const deleteMutation = useDeleteEmailMutation();
   const moveMutation = useMoveEmailMutation();
+  const updateStatusMutation = useUpdateStatusMutation();
+  const restoreSnoozedMutation = useRestoreSnoozedMutation();
+  const snoozeEmailMutation = useSnoozeEmailMutation();
 
   // Extract emails from infinite query data
   const emails = useMemo(
@@ -151,6 +167,26 @@ export const DashboardPage: React.FC = () => {
   }, [emailsError]);
 
   const isGmailNotConnected = checkGmailConnection();
+
+  // ========== AUTO RESTORE SNOOZED EMAILS ==========
+  useEffect(() => {
+    // Only run in kanban view
+    if (viewMode !== "kanban") return;
+
+    // Check for expired snoozed emails every minute
+    const checkSnoozed = () => {
+      restoreSnoozedMutation.mutate();
+    };
+
+    // Run immediately on mount and when switching to kanban view
+    checkSnoozed();
+
+    // Set up interval to check every 60 seconds
+    const interval = setInterval(checkSnoozed, 60000);
+
+    return () => clearInterval(interval);
+  }, [viewMode]); // Only re-run when viewMode changes
+
 
   // ========== EMAIL SELECTION HANDLER ==========
   const handleEmailSelect = useCallback(
@@ -266,6 +302,22 @@ export const DashboardPage: React.FC = () => {
     [selectedEmail, deleteMutation]
   );
 
+  // ========== SNOOZE HANDLER ==========
+  const handleSnoozeConfirm = useCallback(
+    async (until: Date) => {
+      if (!emailToSnooze) return;
+      
+      await snoozeEmailMutation.mutateAsync({ 
+        emailId: emailToSnooze, 
+        until 
+      });
+      
+      setSnoozeModalOpen(false);
+      setEmailToSnooze(null);
+    },
+    [emailToSnooze, snoozeEmailMutation]
+  );
+
   // ========== COMPOSE HANDLERS ==========
   const handleReply = useCallback((email: Email) => {
     setComposeMode({ type: "reply", email });
@@ -279,10 +331,31 @@ export const DashboardPage: React.FC = () => {
 
   // ========== EMAIL MOVE HANDLER (KANBAN) ==========
   const handleEmailMove = useCallback(
-    async (emailId: string, newFolder: string) => {
-      moveMutation.mutate({ emailId, folder: newFolder });
+    async (emailId: string, targetColumnId: string) => {
+      // Special case: Snoozed requires time selection
+      if (targetColumnId === "snoozed") {
+        setEmailToSnooze(emailId);
+        setSnoozeModalOpen(true);
+        return;
+      }
+      
+      // Find target column to get backend status
+      const targetColumn = DEFAULT_KANBAN_COLUMNS.find(col => col.id === targetColumnId);
+      if (!targetColumn) return;
+      
+      // In Kanban view: update status
+      if (viewMode === "kanban") {
+        updateStatusMutation.mutate({ 
+          emailId, 
+          status: targetColumn.status // Send backend status: INBOX, TODO, etc.
+        });
+      } 
+      // In List view: move to Gmail folder
+      else {
+        moveMutation.mutate({ emailId, folder: targetColumnId });
+      }
     },
-    [moveMutation]
+    [viewMode, moveMutation, updateStatusMutation]
   );
 
   // ========== FOLDER CHANGE HANDLER ==========
@@ -481,7 +554,7 @@ export const DashboardPage: React.FC = () => {
           </form>
 
           {/* View Toggle */}
-          <ViewToggle className="ml-4 hidden sm:flex" />
+          <ViewToggle className="ml-4" />
 
           {/* User Menu */}
           <div className="relative" ref={userMenuRef}>
@@ -756,6 +829,8 @@ export const DashboardPage: React.FC = () => {
                 onCardStar={handleToggleStar}
                 onEmailMove={handleEmailMove}
                 selectedEmailId={selectedEmail?.id || null}
+                onLoadMore={hasNextPage ? handleLoadMore : undefined}
+                isLoadingMore={isFetchingNextPage}
               />
             )}
           </div>
@@ -832,6 +907,17 @@ export const DashboardPage: React.FC = () => {
           totalEmails={emails.length}
         />
       )}
+
+      {/* Snooze Modal */}
+      <SnoozeModal
+        isOpen={snoozeModalOpen}
+        onClose={() => {
+          setSnoozeModalOpen(false);
+          setEmailToSnooze(null);
+        }}
+        onConfirm={handleSnoozeConfirm}
+        isLoading={snoozeEmailMutation.isPending}
+      />
 
       {/* Floating Compose Button - Mobile */}
       <button

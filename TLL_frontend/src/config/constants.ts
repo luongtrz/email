@@ -29,6 +29,7 @@ export const API_ENDPOINTS = {
     UPDATE_STATUS: (id: string) => `/api/kanban/emails/${id}/status`,
     SNOOZE: (id: string) => `/api/kanban/emails/${id}/snooze`,
     SUMMARIZE: (id: string) => `/api/kanban/emails/${id}/summarize`,
+    RESTORE_SNOOZED: '/api/kanban/emails/restore-snoozed',
   },
   STUDENTS: {
     LIST: '/api/students',

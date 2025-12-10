@@ -61,6 +61,35 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
     }
   };
 
+  const formatSnoozeUntil = (snoozeUntil: string) => {
+    const snoozeDate = new Date(snoozeUntil);
+    const now = new Date();
+    const diffInHours = (snoozeDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 0) {
+      return "Ready to restore";
+    } else if (diffInHours < 1) {
+      const diffInMinutes = Math.round(diffInHours * 60);
+      return `${diffInMinutes}m`;
+    } else if (diffInHours < 24) {
+      return snoozeDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } else {
+      return snoozeDate.toLocaleDateString([], {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+  };
+
+  // Check if email is snoozed
+  const snoozeUntil = (email as any).snoozeUntil;
+  const isSnoozed = !!snoozeUntil;
+
   return (
     <div
       ref={setNodeRef}
@@ -111,6 +140,28 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
       <h3 className="text-sm font-medium text-gray-900 mb-2 line-clamp-2">
         {email.subject}
       </h3>
+
+      {/* Snooze Until Badge - Only show if snoozed */}
+      {isSnoozed && (
+        <div className="flex items-center gap-1 mb-2 px-2 py-1 bg-purple-50 border border-purple-200 rounded-md w-fit">
+          <svg 
+            className="w-3 h-3 text-purple-600" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" 
+            />
+          </svg>
+          <span className="text-xs font-medium text-purple-700">
+            Until {formatSnoozeUntil(snoozeUntil)}
+          </span>
+        </div>
+      )}
 
       {/* Preview */}
       <p className="text-sm text-gray-600 line-clamp-2 mb-3">{email.preview}</p>
