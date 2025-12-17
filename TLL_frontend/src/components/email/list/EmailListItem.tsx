@@ -92,9 +92,11 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
         >
           {email.subject}
         </span>
-        <span className="text-sm text-gray-500 truncate flex-shrink">
-          {email.preview && ` - ${email.preview}`}
-        </span>
+        {email.preview && email.preview.trim().length > 0 && (
+          <span className="text-sm text-gray-500 truncate flex-shrink">
+            {` - ${email.preview}`}
+          </span>
+        )}
       </div>
 
       {/* Attachment Icon */}

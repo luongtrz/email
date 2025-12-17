@@ -9,6 +9,7 @@ import {
   GetKanbanEmailsDto,
   SortOption,
 } from './dto/get-kanban-emails.dto';
+import { GetInitialKanbanEmailsDto, InitialLoadFolder } from './dto/get-initial-kanban-emails.dto';
 import { Email } from '../emails/interfaces/email.interface';
 import { EmailMetadata } from '@/database/entities/email-metadata.entity';
 import { KanbanEmailStatus } from '@/database/entities/email-metadata.entity';
@@ -256,6 +257,108 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
     return sorted;
   }
 
+  /**
+   * Initial load: Fetch emails from Gmail and create default metadata
+   * Use this endpoint on first load to populate metadata for new users
+   * 
+   * @param userId - User ID
+   * @param dto - Initial load parameters (folder, limit, search)
+   * @returns Array of emails with metadata
+   */
+  async getInitialKanbanEmails(
+    userId: string,
+    dto: GetInitialKanbanEmailsDto,
+  ): Promise<{ items: any[]; total: number; newMetadataCount: number }> {
+    try {
+      // STEP 1: Fetch emails from Gmail
+      const gmailLabel = dto.folder === InitialLoadFolder.ALL ? undefined : dto.folder;
+      const maxResults = Math.min(dto.limit || 50, 100); // Cap at 100
+
+      const listResult = await this.gmailApiService.listMessages(userId, {
+        labelIds: gmailLabel ? [gmailLabel] : undefined,
+        q: dto.search,
+        maxResults,
+      });
+
+      if (!listResult.messages || listResult.messages.length === 0) {
+        return { items: [], total: 0, newMetadataCount: 0 };
+      }
+
+      const emailIds = listResult.messages.map((m) => m.id).filter(Boolean);
+
+      // STEP 2: Get full message details from Gmail
+      const messages = await this.gmailApiService.getMessages(userId, emailIds);
+
+      // STEP 3: Parse emails
+      const parsedEmails = messages.map((msg) =>
+        this.gmailParserService.parseMessage(msg),
+      );
+
+      // STEP 4: Get or create metadata (default status = INBOX)
+      const metadataMap = await this.getMetadataMap(
+        userId,
+        parsedEmails.map((e) => e.id),
+      );
+
+      const missingMetadata: EmailMetadata[] = [];
+      for (const email of parsedEmails) {
+        if (!metadataMap.has(email.id)) {
+          const newMeta = this.emailMetadataRepo.create({
+            userId,
+            emailId: email.id,
+            status: KanbanEmailStatus.INBOX, // Default to INBOX
+          });
+          missingMetadata.push(newMeta);
+          metadataMap.set(email.id, newMeta);
+        }
+      }
+
+      // STEP 5: Save missing metadata in batch
+      if (missingMetadata.length > 0) {
+        await this.emailMetadataRepo.save(missingMetadata);
+        console.log(
+          `[Initial Load] Created ${missingMetadata.length} new email metadata records for user ${userId}`,
+        );
+      }
+
+      // STEP 6: Merge emails with metadata
+      const mergedEmails = this.mergeEmailsWithMetadata(
+        parsedEmails,
+        metadataMap,
+      );
+
+      // STEP 7: Sort by date descending (newest first)
+      const sortedEmails = this.sortEmails(mergedEmails, SortOption.DATE_DESC);
+
+      // STEP 8: Format response
+      const items = sortedEmails.map((email) => ({
+        emailId: email.id,
+        sender: `${email.from.name} <${email.from.email}>`,
+        subject: email.subject,
+        snippet: email.preview,
+        status: email.status,
+        aiSummary: email.aiSummary,
+        snoozeUntil: email.snoozeUntil,
+        updatedAt: metadataMap.get(email.id)?.updatedAt || new Date(),
+        date: email.date,
+        isUnread: email.read === false,
+        hasAttachment: email.attachments && email.attachments.length > 0,
+      }));
+
+      return {
+        items,
+        total: items.length,
+        newMetadataCount: missingMetadata.length,
+      };
+    } catch (error) {
+      console.error('[Initial Load] Error fetching emails from Gmail:', error);
+      if (error.code === 404) {
+        return { items: [], total: 0, newMetadataCount: 0 };
+      }
+      throw error;
+    }
+  }
+
   async getKanbanEmails(
     userId: string,
     dto: GetEmailsDto,
@@ -278,12 +381,35 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
       status: dto.status,
     };
 
-    const metadataRecords = await this.emailMetadataRepo.find({
+    let metadataRecords = await this.emailMetadataRepo.find({
       where: whereClause,
     });
 
+    // AUTO-INITIALIZE: If no metadata exists, fetch from Gmail and create metadata
     if (metadataRecords.length === 0) {
-      return { items: [], total: 0 };
+      // Fetch initial emails from Gmail to populate metadata
+      const initialResult = await this.getInitialKanbanEmails(userId, {
+        folder: InitialLoadFolder.INBOX,
+        limit: 50,
+      });
+
+      if (initialResult.newMetadataCount === 0) {
+        // No emails found in Gmail
+        return { items: [], total: 0 };
+      }
+
+      console.log(
+        `[Auto-Initialize] Created ${initialResult.newMetadataCount} metadata records. Retrying filter...`,
+      );
+
+      // Retry: Query metadata again after initialization
+      metadataRecords = await this.emailMetadataRepo.find({
+        where: whereClause,
+      });
+
+      if (metadataRecords.length === 0) {
+        return { items: [], total: 0 };
+      }
     }
 
     const now = new Date();

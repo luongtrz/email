@@ -1,32 +1,70 @@
-import React, { useMemo } from "react";
-import DOMPurify from "dompurify";
+import React from "react";
 
 interface EmailDetailBodyProps {
   body: string;
 }
 
 export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body }) => {
-  // Sanitize HTML to prevent XSS attacks
-  const sanitizedBody = useMemo(() => {
-    return DOMPurify.sanitize(body, {
-      ALLOWED_TAGS: [
-        'p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li',
-        'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-        'table', 'thead', 'tbody', 'tr', 'th', 'td',
-        'img', 'span', 'div', 'pre', 'code'
-      ],
-      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'target'],
-      ALLOW_DATA_ATTR: false,
-    });
-  }, [body]);
+  // Trust Gmail's HTML completely - render as-is (includes styles, structure, everything)
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div
-        className="prose prose-sm max-w-none text-gray-800 [&_*]:!text-gray-800 [&_*]:!bg-transparent"
-        style={{ colorScheme: "light" }}
-        dangerouslySetInnerHTML={{ __html: sanitizedBody }}
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      {/* Render complete HTML with iframe for isolation */}
+      <iframe
+        title="Email Content"
+        srcDoc={body}
+        className="w-full border-0"
+        style={{
+          minHeight: '400px',
+          height: 'auto',
+        }}
+        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+        onLoad={(e) => {
+          // Auto-resize iframe to content height
+          const iframe = e.target as HTMLIFrameElement;
+          if (iframe.contentWindow) {
+            const height = iframe.contentWindow.document.body.scrollHeight;
+            iframe.style.height = `${height + 20}px`;
+          }
+        }}
       />
+      
+      <style>{`
+        .email-body-content {
+          /* Reset some defaults */
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        /* Ensure tables are responsive */
+        .email-body-content table {
+          max-width: 100%;
+          border-collapse: collapse;
+        }
+        
+        /* Ensure images don't overflow */
+        .email-body-content img {
+          max-width: 100%;
+          height: auto;
+        }
+        
+        /* Links styling */
+        .email-body-content a {
+          color: #1a73e8;
+          text-decoration: none;
+        }
+        
+        .email-body-content a:hover {
+          text-decoration: underline;
+        }
+        
+        /* Buttons */
+        .email-body-content a[style*="background-color"] {
+          display: inline-block;
+          padding: 8px 16px;
+          border-radius: 4px;
+          text-decoration: none;
+        }
+      `}</style>
     </div>
   );
 };
