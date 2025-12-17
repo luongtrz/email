@@ -45,6 +45,7 @@
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.7",
     "date-fns": "^4.1.0",
+    "fuse.js": "^7.1.0",
     "googleapis": "^166.0.0",
     "helmet": "^7.0.0",
     "passport": "^0.6.0",

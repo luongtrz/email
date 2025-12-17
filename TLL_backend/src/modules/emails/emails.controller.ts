@@ -23,7 +23,10 @@ import { ForwardEmailDto } from './dto/forward-email.dto';
 import { Email } from './interfaces/email.interface';
 import { GetDetailEmailsDto } from './dto/get-detail-emails.dto';
 import { SearchEmailDto } from './dto/search-email.dto';
-import { GmailSearchService } from './services/gmail-search.service';
+import { SyncGmailDto } from './dto/sync-gmail.dto';
+import { SearchMailDto } from './dto/search-mail.dto';
+import { GmailSyncService } from './services/gmail-sync.service';
+import { FuzzySearchService } from './services/fuzzy-search.service';
 
 @ApiTags('emails')
 @Controller()
@@ -32,7 +35,8 @@ import { GmailSearchService } from './services/gmail-search.service';
 export class EmailsController {
   constructor(
     private readonly emailsService: EmailsService,
-    private readonly gmailSearchService: GmailSearchService,
+    private readonly gmailSyncService: GmailSyncService,
+    private readonly fuzzySearchService: FuzzySearchService,
   ) {}
 
   @Get('mailboxes')
@@ -55,24 +59,30 @@ export class EmailsController {
   }
 
   // Specific routes must come before parameterized routes
-  @Post('emails/send')
-  @ApiOperation({ summary: 'Send an email' })
-  async sendEmail(@Request() req, @Body() dto: SendEmailDto) {
-    return this.emailsService.sendEmail(req.user.id, dto);
+  @Post('emails/sync')
+  @ApiOperation({ summary: 'Sync emails from Gmail inbox to local database' })
+  async syncGmail(@Request() req, @Body() dto: SyncGmailDto) {
+    return this.gmailSyncService.syncInboxEmails(
+      req.user.id,
+      dto.maxResults,
+    );
   }
 
   @Get('emails/search')
   @ApiOperation({
-    summary: 'Search emails with fuzzy matching (pseudo-fuzzy via Gmail API)',
+    summary: 'Fuzzy search on synced emails',
     description:
-      'Searches emails using Gmail API with query expansion. Searches subject, sender name, and sender email. ' +
-      'Note: This is pseudo-fuzzy search using Gmail operators, not true fuzzy matching. Results ordered by newest first.',
+      'Search stored emails using Fuse.js fuzzy matching. ' +
+      'Searches normalized sender and subject fields. Returns top 20 results by relevance.',
   })
-  async searchEmails(@Request() req, @Query() dto: SearchEmailDto) {
-    return this.gmailSearchService.searchEmails(req.user.id, dto.q, {
-      page: dto.page,
-      limit: dto.limit,
-    });
+  async searchGmail(@Request() req,@Query() dto: SearchMailDto) {
+    return this.fuzzySearchService.searchEmails(req.user.id, dto.q);
+  }
+
+  @Post('emails/send')
+  @ApiOperation({ summary: 'Send an email' })
+  async sendEmail(@Request() req, @Body() dto: SendEmailDto) {
+    return this.emailsService.sendEmail(req.user.id, dto);
   }
 
   @Get('emails/list')
