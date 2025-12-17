@@ -5,6 +5,8 @@ export type ViewMode = "traditional" | "kanban";
 
 export type SortOption = "newest" | "oldest" | "sender_asc" | "sender_desc";
 
+export type FilterMode = "ALL" | "UNREAD" | "STARRED" | "HAS_ATTACHMENT";
+
 interface DashboardState {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
@@ -13,6 +15,10 @@ interface DashboardState {
   // Kanban sorting
   sortBy: SortOption;
   setSortBy: (sortBy: SortOption) => void;
+  
+  // Kanban filtering
+  filterMode: FilterMode;
+  setFilterMode: (filterMode: FilterMode) => void;
   
   // Search state
   searchQuery: string;
@@ -27,6 +33,7 @@ export const useDashboardStore = create<DashboardState>()(
     (set, get) => ({
       viewMode: "traditional",
       sortBy: "newest",
+      filterMode: "ALL",
       searchQuery: "",
       isSearchMode: false,
       previousViewMode: null,
@@ -41,6 +48,8 @@ export const useDashboardStore = create<DashboardState>()(
       },
       
       setSortBy: (sortBy: SortOption) => set({ sortBy }),
+      
+      setFilterMode: (filterMode: FilterMode) => set({ filterMode }),
       
       setSearchQuery: (query: string) => {
         const trimmedQuery = query.trim();
@@ -82,10 +91,11 @@ export const useDashboardStore = create<DashboardState>()(
     }),
     {
       name: "dashboard-view-mode",
-      // Persist viewMode and sortBy only (not search state)
+      // Persist viewMode, sortBy, and filterMode (not search state)
       partialize: (state) => ({ 
         viewMode: state.viewMode,
-        sortBy: state.sortBy 
+        sortBy: state.sortBy,
+        filterMode: state.filterMode
       }),
     }
   )

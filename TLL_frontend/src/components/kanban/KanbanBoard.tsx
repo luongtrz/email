@@ -9,7 +9,8 @@ import {
   type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Filter, ArrowUpDown, Mail, MailOpen, Star, Paperclip } from "lucide-react";
+import { useDashboardStore } from "../../store/dashboard.store";
 import { KanbanColumn } from "./KanbanColumn";
 import { KanbanCard } from "./KanbanCard";
 import {
@@ -49,6 +50,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [cards, setCards] = React.useState<KanbanCardType[]>(() =>
     createCardsFromEmails(emails, columns)
   );
+  
+  // Get filter and sort state from store
+  const { filterMode, setFilterMode, sortBy, setSortBy } = useDashboardStore();
 
   // Update cards when emails change
   React.useEffect(() => {
@@ -162,8 +166,56 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   return (
     <>
-      {/* Toggle for Snoozed Column */}
-      <div className="flex justify-end px-4 py-2 bg-white border-b border-gray-200">
+      {/* Kanban Controls: Filter, Sort, and Snoozed Toggle */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 gap-4">
+        {/* Left: Filter and Sort Controls */}
+        <div className="flex items-center gap-3">
+          {/* Filter Dropdown */}
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <select
+              value={filterMode}
+              onChange={(e) => setFilterMode(e.target.value as "ALL" | "UNREAD" | "STARRED" | "HAS_ATTACHMENT")}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+            >
+              <option value="ALL">All Emails</option>
+              <option value="UNREAD">Unread Only</option>
+              <option value="STARRED">Starred Only</option>
+              <option value="HAS_ATTACHMENT">Has Attachment</option>
+            </select>
+          </div>
+
+          {/* Sort Dropdown */}
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4 text-gray-500" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "sender_asc" | "sender_desc")}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="sender_asc">Sender A-Z</option>
+              <option value="sender_desc">Sender Z-A</option>
+            </select>
+          </div>
+          
+          {/* Active Filter Indicator */}
+          {filterMode !== "ALL" && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
+              {filterMode === "UNREAD" && <MailOpen className="w-3 h-3" />}
+              {filterMode === "STARRED" && <Star className="w-3 h-3" />}
+              {filterMode === "HAS_ATTACHMENT" && <Paperclip className="w-3 h-3" />}
+              <span>
+                {filterMode === "UNREAD" && "Unread"}
+                {filterMode === "STARRED" && "Starred"}
+                {filterMode === "HAS_ATTACHMENT" && "Attachments"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Snoozed Toggle */}
         <button
           onClick={() => setShowSnoozed(!showSnoozed)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${

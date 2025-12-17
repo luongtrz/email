@@ -131,25 +131,43 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 />
               ))}
             </SortableContext>
-            
-            {/* Load More Button */}
-            {onLoadMore && (
+          </>
+        )}
+        
+        {/* Load More Button - Always show at bottom if there are cards */}
+        {cards.length > 0 && (
+          <div className="mt-2">
+            {onLoadMore ? (
               <button
                 onClick={onLoadMore}
                 disabled={isLoadingMore}
-                className="w-full py-3 mt-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors border-2 border-dashed border-blue-200 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoadingMore ? (
                   <div className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                    <span>Loading...</span>
+                    <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+                    <span>Loading more...</span>
                   </div>
                 ) : (
-                  "Load More"
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Load More</span>
+                  </div>
                 )}
               </button>
+            ) : (
+              <div className="w-full py-3 text-sm font-medium text-gray-400 text-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
+                <div className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>All emails loaded</span>
+                </div>
+              </div>
             )}
-          </>
+          </div>
         )}
         </div>
       )}
