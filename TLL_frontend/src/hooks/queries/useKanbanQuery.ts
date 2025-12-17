@@ -1,3 +1,4 @@
+import React from "react";
 import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { kanbanService } from "../../services/kanban.service";
@@ -55,8 +56,18 @@ export const useKanbanEmailsQuery = (folder: string, search: string, limit = 20)
 /**
  * Fetch ALL Kanban columns data (INBOX, TODO, IN_PROGRESS, DONE, SNOOZED)
  * Use this for Kanban board view to populate all columns at once
+ * Supports pagination with incremental load more (only fetches new pages)
  */
 export const useAllKanbanColumnsQuery = (limit = 20) => {
+  const queryClient = useQueryClient();
+  const [pages, setPages] = React.useState<Record<KanbanEmailStatusType, number>>({
+    [KanbanEmailStatus.INBOX]: 1,
+    [KanbanEmailStatus.TODO]: 1,
+    [KanbanEmailStatus.IN_PROGRESS]: 1,
+    [KanbanEmailStatus.DONE]: 1,
+    [KanbanEmailStatus.SNOOZED]: 1,
+  });
+
   const statuses: KanbanEmailStatusType[] = [
     KanbanEmailStatus.INBOX,
     KanbanEmailStatus.TODO,
@@ -68,23 +79,84 @@ export const useAllKanbanColumnsQuery = (limit = 20) => {
   // Fetch all columns in parallel
   const queries = statuses.map((status) =>
     useQuery({
-      queryKey: [...kanbanKeys.all, "column", status],
+      queryKey: [...kanbanKeys.all, "column", status, pages[status]],
       queryFn: async () => {
+        const currentPage = pages[status];
+        
+        // Get existing data from previous page (page - 1)
+        const previousPageData = currentPage > 1 
+          ? queryClient.getQueryData<{
+              status: KanbanEmailStatusType;
+              emails: any[];
+              total: number;
+              currentPage: number;
+              hasMore: boolean;
+            }>([...kanbanKeys.all, "column", status, currentPage - 1])
+          : null;
+        
+        // If loading page > 1, fetch only the new page and append
+        if (previousPageData && currentPage > 1) {
+          // Fetch only the new page
+          const newPageResult = await kanbanService.getKanbanEmails({
+            status,
+            page: currentPage,
+            limit,
+          });
+          
+          const total = typeof newPageResult.pagination.total === 'number' 
+            ? newPageResult.pagination.total 
+            : 0;
+          
+          // Append new emails to existing ones
+          const allEmails = [...previousPageData.emails, ...newPageResult.emails];
+          
+          return {
+            status,
+            emails: allEmails,
+            total,
+            currentPage,
+            hasMore: allEmails.length < total,
+          };
+        }
+        
+        // Initial load (page 1) - fetch only first page
         const result = await kanbanService.getKanbanEmails({
           status,
           page: 1,
           limit,
         });
+        
+        const total = typeof result.pagination.total === 'number' 
+          ? result.pagination.total 
+          : 0;
+        
         return {
           status,
           emails: result.emails,
-          total: result.pagination.total || 0,
+          total,
+          currentPage: 1,
+          hasMore: result.emails.length < total,
         };
       },
       staleTime: 5 * 60 * 1000, // 5 minutes
       refetchOnWindowFocus: false,
     })
   );
+
+  // Load more function - increments page for ALL columns
+  const loadMore = React.useCallback(() => {
+    setPages((prev) => {
+      const newPages = { ...prev };
+      statuses.forEach((status) => {
+        const columnData = queries.find(q => q.data?.status === status)?.data;
+        // Only increment if has more data
+        if (columnData?.hasMore) {
+          newPages[status] = prev[status] + 1;
+        }
+      });
+      return newPages;
+    });
+  }, [queries]);
 
   // Combine results
   const isLoading = queries.some((q) => q.isLoading);
@@ -95,16 +167,21 @@ export const useAllKanbanColumnsQuery = (limit = 20) => {
       acc[q.data.status] = {
         emails: q.data.emails,
         total: typeof q.data.total === 'number' ? q.data.total : 0,
+        hasMore: q.data.hasMore || false,
       };
     }
     return acc;
-  }, {} as Record<KanbanEmailStatusType, { emails: any[]; total: number }>);
+  }, {} as Record<KanbanEmailStatusType, { emails: any[]; total: number; hasMore: boolean }>);
+
+  const hasMoreAny = queries.some((q) => q.data?.hasMore);
 
   return {
     isLoading,
     isError,
     allEmails,
     columnData,
+    loadMore,
+    hasMore: hasMoreAny,
     refetch: () => queries.forEach((q) => q.refetch()),
   };
 };
@@ -169,55 +246,61 @@ export const useUpdateStatusMutation = () => {
       ];
 
       // STEP 1: Save ALL snapshots FIRST (before any updates)
-      const previousData: Record<string, any> = {};
+      // Use getQueriesData to get ALL page caches for each status
+      const previousData: Map<string, any[]> = new Map();
       statuses.forEach((status) => {
-        const queryKey = [...kanbanKeys.all, "column", status];
-        previousData[status] = queryClient.getQueryData(queryKey);
+        const queryFilter = { queryKey: [...kanbanKeys.all, "column", status] };
+        const allPages = queryClient.getQueriesData(queryFilter);
+        previousData.set(status, allPages);
       });
 
       // STEP 2: Find the email to move from snapshots
-      const emailToMove = Object.values(previousData)
-        .flatMap((data: any) => data?.emails || [])
-        .find((e: any) => e.id === emailId);
+      let emailToMove: any = null;
+      previousData.forEach((pages) => {
+        pages.forEach(([_, data]) => {
+          const emails = (data as any)?.emails || [];
+          const found = emails.find((e: any) => e.id === emailId);
+          if (found && !emailToMove) {
+            emailToMove = { ...found };
+          }
+        });
+      });
 
       if (!emailToMove) {
         console.warn(`Email ${emailId} not found in any column`);
         return { previousData };
       }
 
-      // STEP 3: Now update all columns
+      // STEP 3: Now update all columns (ALL pages)
       statuses.forEach((status) => {
-        const queryKey = [...kanbanKeys.all, "column", status];
-        const oldData = previousData[status];
+        const queryFilter = { queryKey: [...kanbanKeys.all, "column", status] };
+        
+        queryClient.setQueriesData(queryFilter, (old: any) => {
+          if (!old) return old;
 
-        if (oldData) {
-          queryClient.setQueryData(queryKey, (old: any) => {
-            if (!old) return old;
+          const emails = old.emails || [];
+          const emailIndex = emails.findIndex((e: any) => e.id === emailId);
 
-            const emails = old.emails || [];
-            const emailIndex = emails.findIndex((e: any) => e.id === emailId);
+          // Remove from old column (any column that's not the new one)
+          if (emailIndex !== -1 && status !== newStatus) {
+            return {
+              ...old,
+              emails: emails.filter((e: any) => e.id !== emailId),
+              total: Math.max(0, (old.total || 0) - 1),
+            };
+          }
 
-            // Remove from old column (any column that's not the new one)
-            if (emailIndex !== -1 && status !== newStatus) {
-              return {
-                ...old,
-                emails: emails.filter((e: any) => e.id !== emailId),
-                total: Math.max(0, (old.total || 0) - 1),
-              };
-            }
+          // Add to new column (only to first page)
+          if (status === newStatus && emailIndex === -1 && old.currentPage === 1) {
+            return {
+              ...old,
+              emails: [{ ...emailToMove, status: newStatus }, ...emails],
+              total: (old.total || 0) + 1,
+            };
+          }
 
-            // Add to new column
-            if (status === newStatus && emailIndex === -1) {
-              return {
-                ...old,
-                emails: [{ ...emailToMove, status: newStatus }, ...emails],
-                total: (old.total || 0) + 1,
-              };
-            }
-
-            return old;
-          });
-        }
+          return old;
+        });
       });
 
       return { previousData };
@@ -231,19 +314,10 @@ export const useUpdateStatusMutation = () => {
 
       // Restore all previous states
       if (context?.previousData) {
-        const statuses: KanbanEmailStatusType[] = [
-          KanbanEmailStatus.INBOX,
-          KanbanEmailStatus.TODO,
-          KanbanEmailStatus.IN_PROGRESS,
-          KanbanEmailStatus.DONE,
-          KanbanEmailStatus.SNOOZED,
-        ];
-
-        statuses.forEach((status) => {
-          const queryKey = [...kanbanKeys.all, "column", status];
-          if (context.previousData[status]) {
-            queryClient.setQueryData(queryKey, context.previousData[status]);
-          }
+        context.previousData.forEach((pages) => {
+          pages.forEach(([queryKey, data]) => {
+            queryClient.setQueryData(queryKey, data);
+          });
         });
       }
     },
@@ -290,8 +364,8 @@ export const useSnoozeEmailMutation = () => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: kanbanKeys.all });
 
-      // Snapshot previous state for rollback
-      const previousData: Record<string, any> = {};
+      // Snapshot previous state for rollback (ALL pages)
+      const previousData: Map<string, any[]> = new Map();
       const statuses: KanbanEmailStatusType[] = [
         KanbanEmailStatus.INBOX,
         KanbanEmailStatus.TODO,
@@ -305,17 +379,19 @@ export const useSnoozeEmailMutation = () => {
       let currentStatus: KanbanEmailStatusType | null = null;
 
       statuses.forEach((status) => {
-        const queryKey = [...kanbanKeys.all, "column", status];
-        const data = queryClient.getQueryData(queryKey);
-        if (data) {
-          previousData[status] = data;
-          const emails = (data as any).emails || [];
+        const queryFilter = { queryKey: [...kanbanKeys.all, "column", status] };
+        const allPages = queryClient.getQueriesData(queryFilter);
+        previousData.set(status, allPages);
+        
+        // Search for email in all pages
+        allPages.forEach(([_, data]) => {
+          const emails = (data as any)?.emails || [];
           const found = emails.find((e: any) => e.id === emailId);
-          if (found) {
+          if (found && !emailToMove) {
             emailToMove = { ...found };
             currentStatus = status;
           }
-        }
+        });
       });
 
       // If email found, perform optimistic update
@@ -325,8 +401,9 @@ export const useSnoozeEmailMutation = () => {
         emailToMove.snoozeUntil = until.toISOString();
 
         statuses.forEach((status) => {
-          const queryKey = [...kanbanKeys.all, "column", status];
-          queryClient.setQueryData(queryKey, (old: any) => {
+          const queryFilter = { queryKey: [...kanbanKeys.all, "column", status] };
+          
+          queryClient.setQueriesData(queryFilter, (old: any) => {
             if (!old) return old;
             const emails = old.emails || [];
             const emailIndex = emails.findIndex((e: any) => e.id === emailId);
@@ -340,8 +417,8 @@ export const useSnoozeEmailMutation = () => {
               };
             }
 
-            // Add to SNOOZED column
-            if (status === KanbanEmailStatus.SNOOZED && status !== currentStatus) {
+            // Add to SNOOZED column (only first page)
+            if (status === KanbanEmailStatus.SNOOZED && status !== currentStatus && old.currentPage === 1) {
               return {
                 ...old,
                 emails: [emailToMove, ...emails],
@@ -370,19 +447,10 @@ export const useSnoozeEmailMutation = () => {
 
       // Restore all previous states
       if (context?.previousData) {
-        const statuses: KanbanEmailStatusType[] = [
-          KanbanEmailStatus.INBOX,
-          KanbanEmailStatus.TODO,
-          KanbanEmailStatus.IN_PROGRESS,
-          KanbanEmailStatus.DONE,
-          KanbanEmailStatus.SNOOZED,
-        ];
-
-        statuses.forEach((status) => {
-          const queryKey = [...kanbanKeys.all, "column", status];
-          if (context.previousData[status]) {
-            queryClient.setQueryData(queryKey, context.previousData[status]);
-          }
+        context.previousData.forEach((pages) => {
+          pages.forEach(([queryKey, data]) => {
+            queryClient.setQueryData(queryKey, data);
+          });
         });
       }
     },

@@ -132,15 +132,19 @@ export const useMarkEmailReadMutation = () => {
       return { emailId, read };
     },
     onMutate: async ({ emailId, read }) => {
-      // Cancel outgoing refetches
+      // Cancel all outgoing refetches for emails and kanban
       await queryClient.cancelQueries({ queryKey: emailKeys.all });
+      await queryClient.cancelQueries({ queryKey: ["kanban"] });
 
-      // Snapshot previous value
+      // Snapshot previous values
       const previousEmails = queryClient.getQueriesData({
         queryKey: emailKeys.lists(),
       });
+      const previousKanban = queryClient.getQueriesData({
+        queryKey: ["kanban"],
+      });
 
-      // Optimistically update for infinite query
+      // Optimistically update for infinite query (folder view)
       queryClient.setQueriesData<{
         pages: Array<{ emails: Email[]; pagination: Record<string, unknown> }>;
       }>({ queryKey: emailKeys.lists() }, (old) => {
@@ -156,7 +160,22 @@ export const useMarkEmailReadMutation = () => {
         };
       });
 
-      return { previousEmails };
+      // Optimistically update for Kanban column queries
+      queryClient.setQueriesData<{
+        status: string;
+        emails: Email[];
+        total: number;
+      }>({ queryKey: ["kanban", "column"] }, (old) => {
+        if (!old?.emails) return old;
+        return {
+          ...old,
+          emails: old.emails.map((email) =>
+            email.id === emailId ? { ...email, read } : email
+          ),
+        };
+      });
+
+      return { previousEmails, previousKanban };
     },
     onError: (_err, _variables, context) => {
       // Rollback on error
@@ -165,11 +184,22 @@ export const useMarkEmailReadMutation = () => {
           queryClient.setQueryData(queryKey, data);
         });
       }
+      if (context?.previousKanban) {
+        context.previousKanban.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
       toast.error("Failed to update email status");
     },
     onSuccess: () => {
-      // Invalidate mailboxes to update counts
+      // Only invalidate mailbox counts (not emails themselves - optimistic update is enough)
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
+    },
+    onSettled: () => {
+      // After mutation completes, invalidate in background for eventual consistency
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["kanban"], refetchType: "none" });
+      }, 1000);
     },
   });
 };
@@ -192,12 +222,19 @@ export const useStarEmailMutation = () => {
       return { emailId, starred };
     },
     onMutate: async ({ emailId, starred }) => {
+      // Cancel all outgoing refetches for emails and kanban
       await queryClient.cancelQueries({ queryKey: emailKeys.all });
+      await queryClient.cancelQueries({ queryKey: ["kanban"] });
+      
+      // Snapshot previous values
       const previousEmails = queryClient.getQueriesData({
         queryKey: emailKeys.lists(),
       });
+      const previousKanban = queryClient.getQueriesData({
+        queryKey: ["kanban"],
+      });
 
-      // Optimistically update for infinite query
+      // Optimistically update for infinite query (folder view)
       queryClient.setQueriesData<{
         pages: Array<{ emails: Email[]; pagination: Record<string, unknown> }>;
       }>({ queryKey: emailKeys.lists() }, (old) => {
@@ -213,19 +250,51 @@ export const useStarEmailMutation = () => {
         };
       });
 
-      return { previousEmails };
+      // Optimistically update for Kanban column queries
+      queryClient.setQueriesData<{
+        status: string;
+        emails: Email[];
+        total: number;
+      }>({ queryKey: ["kanban", "column"] }, (old) => {
+        if (!old?.emails) return old;
+        return {
+          ...old,
+          emails: old.emails.map((email) =>
+            email.id === emailId ? { ...email, starred } : email
+          ),
+        };
+      });
+
+      return { previousEmails, previousKanban };
     },
     onError: (_err, _variables, context) => {
+      // Rollback on error
       if (context?.previousEmails) {
         context.previousEmails.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      if (context?.previousKanban) {
+        context.previousKanban.forEach(([queryKey, data]) => {
           queryClient.setQueryData(queryKey, data);
         });
       }
       toast.error("Failed to update starred status");
     },
     onSuccess: (data) => {
+      // Only invalidate mailbox counts (not emails themselves - optimistic update is enough)
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
+      
+      // Don't invalidate immediately - trust optimistic update
+      // Queries will refetch naturally when they become stale
       toast.success(data.starred ? "Email starred" : "Email unstarred");
+    },
+    onSettled: () => {
+      // After mutation completes (success or error), invalidate in background
+      // This ensures eventual consistency without disrupting UX
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["kanban"], refetchType: "none" });
+      }, 1000);
     },
   });
 };
@@ -242,6 +311,7 @@ export const useDeleteEmailMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: emailKeys.all });
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
+      queryClient.invalidateQueries({ queryKey: ["kanban"] });
       toast.success("Email moved to trash");
     },
     onError: () => {
@@ -306,6 +376,7 @@ export const useMoveEmailMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
+      queryClient.invalidateQueries({ queryKey: ["kanban"] });
       toast.success("Email moved successfully");
     },
   });
@@ -322,6 +393,7 @@ export const useSendEmailMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: emailKeys.all });
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
+      queryClient.invalidateQueries({ queryKey: ["kanban"] });
       toast.success("Email sent successfully");
     },
     onError: () => {

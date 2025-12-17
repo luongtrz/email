@@ -37,6 +37,7 @@ import { useAuthStore } from "../store/auth.store";
 import { useDashboardStore } from "../store/dashboard.store";
 import type { Email } from "../types/email.types";
 import { DEFAULT_KANBAN_COLUMNS } from "../types/kanban.types";
+import { filterEmails, sortEmails } from "../utils/email.utils";
 
 // ========== REACT QUERY HOOKS ==========
 import {
@@ -66,7 +67,7 @@ import { useResizable } from "../hooks/useResizable";
 
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuthStore();
-  const { viewMode, toggleViewMode, searchQuery, isSearchMode, setSearchQuery, clearSearch } = useDashboardStore();
+  const { viewMode, toggleViewMode, searchQuery, isSearchMode, setSearchQuery, clearSearch, filterMode, sortBy } = useDashboardStore();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
   
@@ -97,7 +98,7 @@ export const DashboardPage: React.FC = () => {
 
   // ========== REACT QUERY HOOKS ==========
   // Use Kanban API when in Kanban view to get metadata (status, snoozeUntil)
-  const kanbanData = useAllKanbanColumnsQuery(50); // Fetch all columns for Kanban view
+  const kanbanData = useAllKanbanColumnsQuery(20); // Fetch all columns for Kanban view (20 emails per column per page)
   
   // Search query hook (only active when search mode is enabled)
   const searchResults = useSearchEmailsQuery(
@@ -154,6 +155,21 @@ export const DashboardPage: React.FC = () => {
     () => emailsData?.pages.flatMap((page) => page.emails) || [],
     [emailsData]
   );
+
+  // Apply filtering and sorting for Kanban view
+  const processedEmails = useMemo(() => {
+    if (viewMode !== "kanban") {
+      return emails;
+    }
+    
+    // Step 1: Filter emails
+    const filtered = filterEmails(emails, filterMode);
+    
+    // Step 2: Sort filtered emails
+    const sorted = sortEmails(filtered, sortBy);
+    
+    return sorted;
+  }, [emails, filterMode, sortBy, viewMode]);
 
   // ========== EMAIL NAVIGATION (MODAL) ==========
   const {
@@ -942,14 +958,14 @@ export const DashboardPage: React.FC = () => {
               </div>
             ) : (
               <KanbanBoard
-                emails={emails}
+                emails={processedEmails}
                 columns={DEFAULT_KANBAN_COLUMNS}
                 onCardClick={handleKanbanCardClick}
                 onCardStar={handleToggleStar}
                 onEmailMove={handleEmailMove}
                 selectedEmailId={selectedEmail?.id || null}
-                onLoadMore={hasNextPage ? handleLoadMore : undefined}
-                isLoadingMore={isFetchingNextPage}
+                onLoadMore={kanbanData.hasMore ? kanbanData.loadMore : undefined}
+                isLoadingMore={kanbanData.isLoading}
               />
             )}
           </div>

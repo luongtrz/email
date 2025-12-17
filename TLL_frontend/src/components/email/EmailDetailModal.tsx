@@ -7,7 +7,11 @@ import { EmailDetailAttachments } from "./detail/EmailDetailAttachments";
 import { EmailSummaryCard } from "./EmailSummaryCard";
 import type { Email } from "../../types/email.types";
 import { emailService } from "../../services/email.service";
-import { useEmailDetailQuery } from "../../hooks/queries/useEmailsQuery";
+import { 
+  useEmailDetailQuery, 
+  useStarEmailMutation,
+  useDeleteEmailMutation 
+} from "../../hooks/queries/useEmailsQuery";
 import toast from "react-hot-toast";
 import { Sparkles, X } from "lucide-react";
 
@@ -43,7 +47,6 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false);
 
   // Fetch full email detail when modal opens - ONLY use full content, no preview
@@ -51,6 +54,10 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
     data: fullEmail, 
     isLoading: isLoadingDetail,
   } = useEmailDetailQuery(email?.id || null);
+  
+  // Use mutations for optimistic updates
+  const starMutation = useStarEmailMutation();
+  const deleteMutation = useDeleteEmailMutation();
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -122,16 +129,16 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
 
   const handleStar = async () => {
     if (!fullEmail) return;
-    setIsActionLoading(true);
-    try {
-      await emailService.modifyEmail(fullEmail.id, { star: !fullEmail.starred });
-      toast.success(fullEmail.starred ? "Removed star" : "Starred");
-      onEmailUpdated?.();
-    } catch {
-      toast.error("Failed to update star");
-    } finally {
-      setIsActionLoading(false);
-    }
+    
+    // Use mutation for optimistic update
+    starMutation.mutate(
+      { emailId: fullEmail.id, starred: !fullEmail.starred },
+      {
+        onSuccess: () => {
+          onEmailUpdated?.();
+        }
+      }
+    );
   };
 
   const handleDownloadAttachment = async (attachmentId: string) => {
@@ -156,18 +163,15 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
 
   const handleConfirmDelete = async () => {
     if (!fullEmail) return;
-    setIsDeleting(true);
-    try {
-      await emailService.modifyEmail(fullEmail.id, { delete: true });
-      toast.success("Email deleted");
-      setDeleteModalOpen(false);
-      onEmailUpdated?.();
-      onClose();
-    } catch {
-      toast.error("Failed to delete email");
-    } finally {
-      setIsDeleting(false);
-    }
+    
+    // Use mutation for proper cache invalidation
+    deleteMutation.mutate(fullEmail.id, {
+      onSuccess: () => {
+        setDeleteModalOpen(false);
+        onEmailUpdated?.();
+        onClose();
+      }
+    });
   };
 
   if (!isOpen) return null;
@@ -283,8 +287,8 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
               {/* Main Email Content */}
               <div className="flex-1 overflow-hidden flex flex-col">
                 <EmailDetailHeader
-                  email={email}
-                  isActionLoading={isActionLoading}
+                  email={fullEmail || email}
+                  isActionLoading={isActionLoading || starMutation.isPending}
                   onArchive={handleArchive}
                   onDelete={() => setDeleteModalOpen(true)}
                   onStar={handleStar}
@@ -375,7 +379,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
         message="This email will be permanently deleted. This action cannot be undone."
         confirmText="Delete"
         cancelText="Cancel"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         isDangerous={true}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteModalOpen(false)}

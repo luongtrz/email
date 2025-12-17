@@ -124,6 +124,41 @@ export const getSenderName = (email: string): string => {
 };
 
 /**
+ * Filter mode for emails
+ */
+export type FilterMode = "ALL" | "UNREAD" | "STARRED" | "HAS_ATTACHMENT";
+
+/**
+ * Filter emails based on selected mode
+ * Used for Kanban board filtering
+ */
+export const filterEmails = <T extends { 
+  read: boolean; 
+  starred: boolean; 
+  attachments?: { id: string; filename: string; mimeType: string; size: string }[] 
+}>(
+  emails: T[],
+  filterMode: FilterMode
+): T[] => {
+  switch (filterMode) {
+    case "ALL":
+      return emails;
+      
+    case "UNREAD":
+      return emails.filter((email) => !email.read);
+      
+    case "STARRED":
+      return emails.filter((email) => email.starred);
+      
+    case "HAS_ATTACHMENT":
+      return emails.filter((email) => email.attachments && email.attachments.length > 0);
+      
+    default:
+      return emails;
+  }
+};
+
+/**
  * Sort options for Kanban emails
  */
 export type SortOption = "newest" | "oldest" | "sender_asc" | "sender_desc";
