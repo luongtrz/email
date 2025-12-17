@@ -50,6 +50,7 @@ import {
   useRestoreSnoozedMutation, 
   useSnoozeEmailMutation,
   useKanbanEmailsQuery,
+  useAllKanbanColumnsQuery,
   useUpdateStatusMutation
 } from "../hooks/queries/useKanbanQuery";
 
@@ -90,6 +91,8 @@ export const DashboardPage: React.FC = () => {
 
   // ========== REACT QUERY HOOKS ==========
   // Use Kanban API when in Kanban view to get metadata (status, snoozeUntil)
+  const kanbanData = useAllKanbanColumnsQuery(50); // Fetch all columns for Kanban view
+  
   const {
     data: emailsData,
     isLoading: isLoadingEmails,
@@ -99,7 +102,15 @@ export const DashboardPage: React.FC = () => {
     hasNextPage,
     isFetchingNextPage,
   } = viewMode === "kanban" 
-    ? useKanbanEmailsQuery(activeFolder, searchQuery)
+    ? { 
+        data: { pages: [{ emails: kanbanData.allEmails, pagination: {} }] },
+        isLoading: kanbanData.isLoading,
+        error: kanbanData.isError ? new Error('Failed to load Kanban data') : null,
+        refetch: kanbanData.refetch,
+        fetchNextPage: async () => {},
+        hasNextPage: false,
+        isFetchingNextPage: false,
+      }
     : useInfiniteEmailsQuery(activeFolder, searchQuery);
 
   const {

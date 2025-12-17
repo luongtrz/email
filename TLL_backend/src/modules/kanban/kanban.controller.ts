@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GmailAuthGuard } from '../emails/guards/gmail-auth.guard';
 import { GetKanbanEmailsDto } from './dto/get-kanban-emails.dto';
+import { GetInitialKanbanEmailsDto } from './dto/get-initial-kanban-emails.dto';
 import { KanbanEmailsService } from './kanban.service';
 import { KanbanEmail } from './interfaces/kanban-email.interface';
 import { UpdateStatusDto } from './dto/update-status.dto';
@@ -26,11 +27,27 @@ import { SummarizeDto } from './dto/summarize.dto';
 export class KanbanEmailsController {
   constructor(private readonly kanbanEmailsService: KanbanEmailsService) {}
 
- @Get('emails')
+  @Get('emails/initial')
+  @ApiOperation({
+    summary: 'Initial load: Fetch emails from Gmail and create metadata',
+    description:
+      'Use this endpoint on first load to fetch emails from Gmail and automatically create metadata records with default status (INBOX). ' +
+      'This endpoint fetches directly from Gmail API and creates metadata for emails that don\'t have it yet. ' +
+      'Subsequent loads should use GET /api/kanban/emails with status filters for better performance.',
+  })
+  async getInitialKanbanEmails(
+    @Request() req,
+    @Query() dto: GetInitialKanbanEmailsDto,
+  ) {
+    return this.kanbanEmailsService.getInitialKanbanEmails(req.user.id, dto);
+  }
+
+  @Get('emails')
   @ApiOperation({
     summary: 'Get kanban emails with filtering and sorting',
     description:
-      'Fetch emails for a specific Kanban column (status) with optional filters (isUnread, hasAttachment, from) and sorting (date_desc, date_asc, sender_asc)',
+      'Fetch emails for a specific Kanban column (status) with optional filters (isUnread, hasAttachment, from) and sorting (date_desc, date_asc, sender_asc). ' +
+      'This endpoint requires existing metadata. Use GET /api/kanban/emails/initial for first load or when metadata is missing.',
   })
   async getKanbanEmails(@Request() req, @Query() dto: GetKanbanEmailsDto) {
     return this.kanbanEmailsService.getKanbanEmailsWithFilters(

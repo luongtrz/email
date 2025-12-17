@@ -222,11 +222,23 @@ export class GmailParserService {
    * Extract preview text from body
    */
   private extractPreview(body: string, maxLength: number = 150): string {
-    // Remove HTML tags
-    const text = body
+    // Remove style and script tags with their content
+    let text = body
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, ''); // Remove entire head section
+    
+    // Remove remaining HTML tags
+    text = text
       .replace(/<[^>]*>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+    
+    // If still empty or just whitespace, return empty
+    if (!text || text.length === 0) {
+      return '';
+    }
+    
     if (text.length <= maxLength) {
       return text;
     }

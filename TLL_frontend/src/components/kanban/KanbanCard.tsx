@@ -163,8 +163,10 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
         </div>
       )}
 
-      {/* Preview */}
-      <p className="text-sm text-gray-600 line-clamp-2 mb-3">{email.preview}</p>
+      {/* Preview - only show if meaningful */}
+      {email.preview && email.preview.trim().length > 0 && (
+        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{email.preview}</p>
+      )}
 
       {/* Footer with attachments and actions */}
       <div className="flex items-center justify-between">
