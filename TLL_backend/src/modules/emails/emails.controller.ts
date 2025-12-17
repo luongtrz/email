@@ -22,13 +22,18 @@ import { ReplyEmailDto } from './dto/reply-email.dto';
 import { ForwardEmailDto } from './dto/forward-email.dto';
 import { Email } from './interfaces/email.interface';
 import { GetDetailEmailsDto } from './dto/get-detail-emails.dto';
+import { SearchEmailDto } from './dto/search-email.dto';
+import { GmailSearchService } from './services/gmail-search.service';
 
 @ApiTags('emails')
 @Controller()
 @UseGuards(JwtAuthGuard, GmailAuthGuard)
 @ApiBearerAuth()
 export class EmailsController {
-  constructor(private readonly emailsService: EmailsService) {}
+  constructor(
+    private readonly emailsService: EmailsService,
+    private readonly gmailSearchService: GmailSearchService,
+  ) {}
 
   @Get('mailboxes')
   @ApiOperation({ summary: 'Get all mailboxes with counts' })
@@ -54,6 +59,20 @@ export class EmailsController {
   @ApiOperation({ summary: 'Send an email' })
   async sendEmail(@Request() req, @Body() dto: SendEmailDto) {
     return this.emailsService.sendEmail(req.user.id, dto);
+  }
+
+  @Get('emails/search')
+  @ApiOperation({
+    summary: 'Search emails with fuzzy matching (pseudo-fuzzy via Gmail API)',
+    description:
+      'Searches emails using Gmail API with query expansion. Searches subject, sender name, and sender email. ' +
+      'Note: This is pseudo-fuzzy search using Gmail operators, not true fuzzy matching. Results ordered by newest first.',
+  })
+  async searchEmails(@Request() req, @Query() dto: SearchEmailDto) {
+    return this.gmailSearchService.searchEmails(req.user.id, dto.q, {
+      page: dto.page,
+      limit: dto.limit,
+    });
   }
 
   @Get('emails/list')
