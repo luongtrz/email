@@ -5,66 +5,272 @@ interface EmailDetailBodyProps {
 }
 
 export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body }) => {
-  // Trust Gmail's HTML completely - render as-is (includes styles, structure, everything)
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+  const [hasError, setHasError] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const resizeObserverRef = React.useRef<ResizeObserver | null>(null);
+
+  const wrappedHTML = React.useMemo(() => {
+    // Detect if body is already a complete HTML document
+    const isCompleteHTML = /<!DOCTYPE/i.test(body) || /<html[^>]*>/i.test(body);
+    
+    // If already complete HTML document, enhance it with safety measures
+    if (isCompleteHTML) {
+      // Inject base tag if missing (for relative URLs) and meta tags for safety
+      let enhancedHTML = body;
+      
+      // Add base tag after <head> if not present (prevents relative URL issues)
+      if (!/<base\s/i.test(body)) {
+        enhancedHTML = enhancedHTML.replace(
+          /(<head[^>]*>)/i,
+          '$1\n<base href="about:blank" target="_blank">'
+        );
+      }
+      
+      // Ensure charset is specified
+      if (!/<meta[^>]+charset/i.test(body)) {
+        enhancedHTML = enhancedHTML.replace(
+          /(<head[^>]*>)/i,
+          '$1\n<meta charset="UTF-8">'
+        );
+      }
+      
+      return enhancedHTML;
+    }
+    
+    // Otherwise, detect if plain text or HTML fragment
+    const isPlainText = !/<[^>]+>/.test(body);
+    
+    // Wrap partial HTML or plain text in complete document with comprehensive protection
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <base href="about:blank" target="_blank">
+  <style>
+    /* Comprehensive CSS Reset - Gmail-style isolation */
+    *, *::before, *::after { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+    }
+    
+    html { 
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+      -moz-osx-font-smoothing: grayscale;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    html, body { 
+      margin: 0 !important; 
+      padding: 0 !important; 
+      width: 100% !important;
+      min-height: 100%;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #000;
+      background: #fff;
+      padding: ${isPlainText ? '16px' : '0'};
+      ${isPlainText ? 'white-space: pre-wrap;' : ''}
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      word-break: break-word;
+    }
+    
+    /* Reset tables completely */
+    table { 
+      border-collapse: collapse; 
+      border-spacing: 0; 
+      max-width: 100%;
+    }
+    
+    /* Responsive images - prevent overflow */
+    img { 
+      max-width: 100% !important; 
+      height: auto !important; 
+      border: 0; 
+      display: block;
+      -ms-interpolation-mode: bicubic;
+    }
+    
+    /* Links inherit color by default */
+    a { 
+      color: inherit; 
+      text-decoration: underline;
+    }
+    
+    /* Prevent text overflow */
+    p, div, span, td, th {
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+    }
+    
+    /* Handle long URLs */
+    a[href] {
+      word-break: break-all;
+    }
+    
+    /* Prevent horizontal overflow */
+    * {
+      max-width: 100%;
+    }
+    
+    /* Fix for outlook conditional comments */
+    .mso { display: none; }
+    
+    /* Responsive container */
+    body > table,
+    body > div,
+    body > center {
+      max-width: 100% !important;
+    }
+  </style>
+</head>
+<body>
+${body}
+</body>
+</html>`;
+  }, [body]);
+
+  // Enhanced resize logic with ResizeObserver for continuous monitoring
+  const setupResizeObserver = React.useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow?.document?.body) return;
+
+    const resizeIframe = () => {
+      try {
+        const iframeDoc = iframe.contentWindow!.document;
+        const body = iframeDoc.body;
+        const html = iframeDoc.documentElement;
+        
+        // Force reflow
+        void body.offsetHeight;
+        
+        // Get maximum height from all possible sources
+        const heights = [
+          body.scrollHeight,
+          body.offsetHeight,
+          body.clientHeight,
+          html.scrollHeight,
+          html.offsetHeight,
+          html.clientHeight,
+        ];
+        
+        // Find max content in tables (common in emails)
+        const tables = iframeDoc.querySelectorAll('table');
+        tables.forEach(table => {
+          heights.push((table as HTMLElement).scrollHeight);
+        });
+        
+        const maxHeight = Math.max(...heights, 400); // Min 400px
+        
+        if (maxHeight > 0 && maxHeight < 50000) { // Max 50000px safety
+          iframe.style.height = `${maxHeight + 40}px`;
+        }
+      } catch (err) {
+        console.warn('Resize iframe error:', err);
+      }
+    };
+
+    // Initial resize attempts
+    const timeouts = [50, 150, 400, 800, 1500];
+    timeouts.forEach(delay => setTimeout(resizeIframe, delay));
+
+    // Setup ResizeObserver for dynamic content (e.g., lazy-loaded images)
+    try {
+      if ('ResizeObserver' in window) {
+        resizeObserverRef.current = new ResizeObserver(resizeIframe);
+        resizeObserverRef.current.observe(iframe.contentWindow!.document.body);
+      }
+    } catch (err) {
+      console.warn('ResizeObserver setup failed:', err);
+    }
+
+    // Listen for image load events
+    const images = iframe.contentWindow!.document.querySelectorAll('img');
+    images.forEach(img => {
+      if (!img.complete) {
+        img.addEventListener('load', resizeIframe);
+        img.addEventListener('error', resizeIframe);
+      }
+    });
+
+    // Cleanup
+    return () => {
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
+    };
+  }, []);
+
+  const handleLoad = React.useCallback(() => {
+    setIsLoading(false);
+    setHasError(false);
+    setupResizeObserver();
+  }, [setupResizeObserver]);
+
+  const handleError = React.useCallback(() => {
+    setIsLoading(false);
+    setHasError(true);
+    console.error('Email iframe failed to load');
+  }, []);
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      resizeObserverRef.current?.disconnect();
+    };
+  }, []);
+
+  if (hasError) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+        <div className="text-red-600 text-lg font-medium mb-2">
+          Unable to display email content
+        </div>
+        <div className="text-red-500 text-sm">
+          The email format may be unsupported or corrupted.
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-      {/* Render complete HTML with iframe for isolation */}
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden relative">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+          <div className="flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="text-sm text-gray-600">Loading email...</div>
+          </div>
+        </div>
+      )}
+      
+      {/* Gmail-style iframe with comprehensive isolation and error handling */}
       <iframe
+        ref={iframeRef}
         title="Email Content"
-        srcDoc={body}
+        srcDoc={wrappedHTML}
         className="w-full border-0"
         style={{
           minHeight: '400px',
-          height: 'auto',
+          height: '600px',
+          display: 'block',
+          backgroundColor: '#fff',
         }}
-        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-        onLoad={(e) => {
-          // Auto-resize iframe to content height
-          const iframe = e.target as HTMLIFrameElement;
-          if (iframe.contentWindow) {
-            const height = iframe.contentWindow.document.body.scrollHeight;
-            iframe.style.height = `${height + 20}px`;
-          }
-        }}
+        // NO sandbox - trust Gmail's sanitization, allow all features
+        referrerPolicy="no-referrer"
+        onLoad={handleLoad}
+        onError={handleError}
+        // Security: disable some features
+        allow="autoplay 'none'; camera 'none'; microphone 'none'; geolocation 'none'"
       />
-      
-      <style>{`
-        .email-body-content {
-          /* Reset some defaults */
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        }
-        
-        /* Ensure tables are responsive */
-        .email-body-content table {
-          max-width: 100%;
-          border-collapse: collapse;
-        }
-        
-        /* Ensure images don't overflow */
-        .email-body-content img {
-          max-width: 100%;
-          height: auto;
-        }
-        
-        /* Links styling */
-        .email-body-content a {
-          color: #1a73e8;
-          text-decoration: none;
-        }
-        
-        .email-body-content a:hover {
-          text-decoration: underline;
-        }
-        
-        /* Buttons */
-        .email-body-content a[style*="background-color"] {
-          display: inline-block;
-          padding: 8px 16px;
-          border-radius: 4px;
-          text-decoration: none;
-        }
-      `}</style>
     </div>
   );
 };

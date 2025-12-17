@@ -122,3 +122,56 @@ export const getSenderName = (email: string): string => {
   const username = email.split("@")[0];
   return username.charAt(0).toUpperCase() + username.slice(1);
 };
+
+/**
+ * Sort options for Kanban emails
+ */
+export type SortOption = "newest" | "oldest" | "sender_asc" | "sender_desc";
+
+/**
+ * Sort emails based on selected option
+ * Used for Kanban board global sorting
+ */
+export const sortEmails = <T extends { date: Date | string; from: { name: string; email: string } }>(
+  emails: T[],
+  sortBy: SortOption
+): T[] => {
+  const emailsCopy = [...emails];
+
+  switch (sortBy) {
+    case "newest":
+      // Newest first (descending by date)
+      return emailsCopy.sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return dateB - dateA; // Descending
+      });
+
+    case "oldest":
+      // Oldest first (ascending by date)
+      return emailsCopy.sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return dateA - dateB; // Ascending
+      });
+
+    case "sender_asc":
+      // Sender A-Z (ascending)
+      return emailsCopy.sort((a, b) => {
+        const nameA = (a.from.name || a.from.email).toLowerCase();
+        const nameB = (b.from.name || b.from.email).toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+
+    case "sender_desc":
+      // Sender Z-A (descending)
+      return emailsCopy.sort((a, b) => {
+        const nameA = (a.from.name || a.from.email).toLowerCase();
+        const nameB = (b.from.name || b.from.email).toLowerCase();
+        return nameB.localeCompare(nameA);
+      });
+
+    default:
+      return emailsCopy;
+  }
+};
