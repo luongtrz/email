@@ -46,14 +46,11 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false);
 
-  // Fetch full email detail when modal opens
+  // Fetch full email detail when modal opens - ONLY use full content, no preview
   const { 
     data: fullEmail, 
     isLoading: isLoadingDetail,
   } = useEmailDetailQuery(email?.id || null);
-
-  // Use full email if available, fallback to preview email
-  const displayEmail = fullEmail || email;
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -109,10 +106,10 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
   }, [isOpen, canGoNext, canGoPrevious, onNext, onPrevious, onClose]);
 
   const handleArchive = async () => {
-    if (!displayEmail) return;
+    if (!fullEmail) return;
     setIsActionLoading(true);
     try {
-      await emailService.modifyEmail(displayEmail.id, { archive: true });
+      await emailService.modifyEmail(fullEmail.id, { archive: true });
       toast.success("Email archived");
       onEmailUpdated?.();
       onClose();
@@ -124,11 +121,11 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
   };
 
   const handleStar = async () => {
-    if (!displayEmail) return;
+    if (!fullEmail) return;
     setIsActionLoading(true);
     try {
-      await emailService.modifyEmail(displayEmail.id, { star: !displayEmail.starred });
-      toast.success(displayEmail.starred ? "Removed star" : "Starred");
+      await emailService.modifyEmail(fullEmail.id, { star: !fullEmail.starred });
+      toast.success(fullEmail.starred ? "Removed star" : "Starred");
       onEmailUpdated?.();
     } catch {
       toast.error("Failed to update star");
@@ -138,11 +135,11 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
   };
 
   const handleDownloadAttachment = async (attachmentId: string) => {
-    if (!displayEmail) return;
+    if (!fullEmail) return;
     try {
       const blob = await emailService.downloadAttachment(
         attachmentId,
-        displayEmail.id
+        fullEmail.id
       );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -158,10 +155,10 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
   };
 
   const handleConfirmDelete = async () => {
-    if (!displayEmail) return;
+    if (!fullEmail) return;
     setIsDeleting(true);
     try {
-      await emailService.modifyEmail(displayEmail.id, { delete: true });
+      await emailService.modifyEmail(fullEmail.id, { delete: true });
       toast.success("Email deleted");
       setDeleteModalOpen(false);
       onEmailUpdated?.();
@@ -298,32 +295,28 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
 
                 <div className="flex-1 overflow-y-auto bg-gray-50">
                   <div className="max-w-4xl mx-auto p-4 sm:p-6">
-                    {isLoadingDetail ? (
+                    {isLoadingDetail || !fullEmail ? (
                       <div className="flex items-center justify-center h-64">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
                       </div>
-                    ) : displayEmail ? (
+                    ) : (
                       <>
                         <h1 className="text-xl sm:text-2xl font-normal text-gray-900 mb-4">
-                          {displayEmail.subject}
+                          {fullEmail.subject}
                         </h1>
 
-                        <EmailDetailSender email={displayEmail} />
+                        <EmailDetailSender email={fullEmail} />
 
-                        {displayEmail.attachments && displayEmail.attachments.length > 0 && (
+                        {fullEmail.attachments && fullEmail.attachments.length > 0 && (
                           <EmailDetailAttachments
-                            attachments={displayEmail.attachments}
+                            attachments={fullEmail.attachments}
                             onDownload={handleDownloadAttachment}
                             isLoading={isActionLoading}
                           />
                         )}
 
-                        <EmailDetailBody body={displayEmail.body} />
+                        <EmailDetailBody body={fullEmail.body} />
                       </>
-                    ) : (
-                      <div className="flex items-center justify-center h-64 text-gray-500">
-                        Failed to load email
-                      </div>
                     )}
                   </div>
                 </div>
@@ -343,8 +336,8 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
                         <h3 className="font-semibold text-gray-800">AI Space</h3>
                       </div>
                     </div>
-                    {displayEmail && (
-                      <EmailSummaryCard emailId={displayEmail.id} summary={displayEmail.aiSummary} />
+                    {fullEmail && (
+                      <EmailSummaryCard emailId={fullEmail.id} summary={fullEmail.aiSummary} />
                     )}
                   </div>
                 )}
