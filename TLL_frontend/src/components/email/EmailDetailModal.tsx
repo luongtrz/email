@@ -50,7 +50,6 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
   const { 
     data: fullEmail, 
     isLoading: isLoadingDetail,
-    error: detailError 
   } = useEmailDetailQuery(email?.id || null);
 
   // Use full email if available, fallback to preview email

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, useInfiniteQuery, useQueries } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { kanbanService } from "../../services/kanban.service";
 import { KanbanEmailStatus, type KanbanEmailStatusType } from "../../types/kanban.types";
@@ -227,6 +227,7 @@ export const useUpdateStatusMutation = () => {
     onError: (error: any, variables, context) => {
       const message = error?.response?.data?.message || "Failed to update status";
       toast.error(message);
+      console.error("Update status error:", variables);
 
       // Restore all previous states
       if (context?.previousData) {

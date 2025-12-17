@@ -49,7 +49,7 @@ import {
 import { 
   useRestoreSnoozedMutation, 
   useSnoozeEmailMutation,
-  useKanbanEmailsQuery,
+  // useKanbanEmailsQuery,
   useAllKanbanColumnsQuery,
   useUpdateStatusMutation
 } from "../hooks/queries/useKanbanQuery";
