@@ -87,7 +87,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
   };
 
   // Check if email is snoozed
-  const snoozeUntil = (email as any).snoozeUntil;
+  const snoozeUntil = email.snoozeUntil;
   const isSnoozed = !!snoozeUntil;
 
   return (

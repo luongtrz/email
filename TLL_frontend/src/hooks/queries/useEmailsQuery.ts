@@ -14,21 +14,24 @@ export const emailKeys = {
   lists: () => [...emailKeys.all, "list"] as const,
   list: (folder: string, search: string) =>
     [...emailKeys.lists(), { folder, search }] as const,
+  searches: () => [...emailKeys.all, "search"] as const,
+  search: (query: string) => [...emailKeys.searches(), query] as const,
   details: () => [...emailKeys.all, "detail"] as const,
   detail: (id: string) => [...emailKeys.details(), id] as const,
   mailboxes: () => ["mailboxes"] as const,
 };
 
 /**
- * Fetch emails with pagination
+ * Fetch emails with pagination (Folder browsing only - NO SEARCH)
+ * Search is handled by separate useSearchEmailsQuery hook
  */
-export const useEmailsQuery = (folder: string, search: string, limit = 20) => {
+export const useEmailsQuery = (folder: string, limit = 20) => {
   return useQuery({
-    queryKey: emailKeys.list(folder, search),
+    queryKey: emailKeys.list(folder, ""),
     queryFn: async () => {
       const result = await emailService.getEmails({
         folder,
-        search: search || undefined,
+        // NO SEARCH PARAMETER
         page: 1,
         limit,
       });
@@ -39,31 +42,53 @@ export const useEmailsQuery = (folder: string, search: string, limit = 20) => {
 };
 
 /**
- * Infinite scroll query for emails
+ * Infinite scroll query for emails (Folder browsing only - NO SEARCH)
+ * Search is handled by separate useSearchEmailsQuery hook
  */
 export const useInfiniteEmailsQuery = (
   folder: string,
-  search: string,
   limit = 20
 ) => {
   return useInfiniteQuery({
-    queryKey: emailKeys.list(folder, search),
+    queryKey: emailKeys.list(folder, ""),
     queryFn: async ({ pageParam = 1 }) => {
       const result = await emailService.getEmails({
         folder,
-        search: search || undefined,
+        // NO SEARCH PARAMETER - folder browsing only
         page: pageParam,
         limit,
       });
       return result;
     },
     getNextPageParam: (lastPage) => {
-      // const { page, totalPages } = lastPage.pagination;
       const { page, totalPages } = lastPage.pagination as { page: number; totalPages: number };
       return page < totalPages ? page + 1 : undefined;
     },
     initialPageParam: 1,
     enabled: !!folder,
+  });
+};
+
+/**
+ * Search emails with fuzzy matching (infinite scroll)
+ */
+export const useSearchEmailsQuery = (query: string, limit = 20) => {
+  return useInfiniteQuery({
+    queryKey: emailKeys.search(query),
+    queryFn: async ({ pageParam = 1 }) => {
+      const result = await emailService.searchEmails(query, {
+        page: pageParam,
+        limit,
+      });
+      return result;
+    },
+    getNextPageParam: (lastPage) => {
+      const { page, totalPages } = lastPage.pagination as { page: number; totalPages: number };
+      return page < totalPages ? page + 1 : undefined;
+    },
+    initialPageParam: 1,
+    enabled: !!query && query.length >= 3, // Only search if query has at least 3 characters
+    staleTime: 30000, // Cache search results for 30 seconds
   });
 };
 

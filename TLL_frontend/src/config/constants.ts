@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
     MAILBOXES: '/api/mailboxes',
     EMAILS_BY_FOLDER: (folderId: string) => `/api/mailboxes/${folderId}/emails`,
     LIST: '/api/emails/list',
+    SEARCH: '/api/emails/search',
     DETAIL: (id: string) => `/api/emails/${id}`,
     MODIFY: (id: string) => `/api/emails/${id}/modify`,
     SEND: '/api/emails/send',

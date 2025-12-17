@@ -31,6 +31,8 @@ import { KanbanBoardSkeleton } from "../components/kanban/KanbanBoardSkeleton";
 import { DeleteConfirmModal } from "../components/modals/DeleteConfirmModal";
 import { SnoozeModal } from "../components/modals/SnoozeModal";
 import { ViewToggle } from "../components/ViewToggle";
+import { logger } from "../lib/logger";
+import { emailService } from "../services/email.service";
 import { useAuthStore } from "../store/auth.store";
 import { useDashboardStore } from "../store/dashboard.store";
 import type { Email } from "../types/email.types";
@@ -43,6 +45,7 @@ import {
   useMailboxesQuery,
   useMarkEmailReadMutation,
   useMoveEmailMutation,
+  useSearchEmailsQuery,
   useStarEmailMutation,
 } from "../hooks/queries/useEmailsQuery";
 
@@ -55,6 +58,7 @@ import {
 } from "../hooks/queries/useKanbanQuery";
 
 // ========== OTHER CUSTOM HOOKS ==========
+import { useDebounce } from "../hooks/useDebounce";
 import { useEmailNavigation } from "../hooks/useEmailNavigation";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
 import { useOutsideClick } from "../hooks/useOutsideClick";
@@ -62,14 +66,16 @@ import { useResizable } from "../hooks/useResizable";
 
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuthStore();
-  const { viewMode, toggleViewMode } = useDashboardStore();
+  const { viewMode, toggleViewMode, searchQuery, isSearchMode, setSearchQuery, clearSearch } = useDashboardStore();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  // Debounce search query to avoid excessive API calls
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // ========== BASIC STATE ==========
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [activeFolder, setActiveFolder] = useState("inbox");
-  const [searchQuery, setSearchQuery] = useState("");
 
   // ========== UI STATE ==========
   const [showMobileDetail, setShowMobileDetail] = useState(false);
@@ -93,6 +99,20 @@ export const DashboardPage: React.FC = () => {
   // Use Kanban API when in Kanban view to get metadata (status, snoozeUntil)
   const kanbanData = useAllKanbanColumnsQuery(50); // Fetch all columns for Kanban view
   
+  // Search query hook (only active when search mode is enabled)
+  const searchResults = useSearchEmailsQuery(
+    debouncedSearchQuery,
+    20
+  );
+  
+  // Folder query hook (DISABLED when in search mode to prevent dual API calls)
+  // Pass empty string as folder when searching to disable the query
+  const folderResults = useInfiniteEmailsQuery(
+    isSearchMode ? "" : activeFolder, // Disable folder query during search
+    20
+  );
+  
+  // Determine which data source to use
   const {
     data: emailsData,
     isLoading: isLoadingEmails,
@@ -111,7 +131,9 @@ export const DashboardPage: React.FC = () => {
         hasNextPage: false,
         isFetchingNextPage: false,
       }
-    : useInfiniteEmailsQuery(activeFolder, searchQuery);
+    : isSearchMode && debouncedSearchQuery.length >= 3
+    ? searchResults
+    : folderResults;
 
   const {
     data: folders = [],
@@ -202,22 +224,35 @@ export const DashboardPage: React.FC = () => {
   // ========== EMAIL SELECTION HANDLER ==========
   const handleEmailSelect = useCallback(
     async (emailId: string) => {
-      const email = emails.find((e) => e.id === emailId);
-      if (email) {
-        // Traditional view: set selected email for side panel (old behavior)
-        // Kanban view: open modal for quick navigation
-        if (viewMode === "traditional") {
-          setSelectedEmail(email);
-          setShowMobileDetail(true);
-        } else {
-          // Kanban: open modal
-          openEmailModal(email);
-        }
+      const emailFromList = emails.find((e) => e.id === emailId);
+      if (!emailFromList) return;
 
-        // Mark as read with optimistic update
-        if (!email.read) {
-          markReadMutation.mutate({ emailId, read: true });
+      // Clear current selection first to avoid showing stale data
+      setSelectedEmail(null);
+
+      // Fetch full email with body from server (important for search results)
+      try {
+        logger.info(`[EMAIL DETAIL] Fetching full email body for: ${emailId}`);
+        const fullEmail = await emailService.getEmailById(emailId);
+        if (fullEmail) {
+          logger.info(`[EMAIL DETAIL] Successfully loaded email body (${fullEmail.body.length} chars)`);
+
+          if (viewMode === "traditional") {
+            setSelectedEmail(fullEmail);
+            setShowMobileDetail(true);
+          } else {
+            // Kanban: open modal with full email
+            openEmailModal(fullEmail);
+          }
         }
+      } catch (error) {
+        logger.error("Failed to fetch full email", error);
+        toast.error("Failed to load email details");
+      }
+
+      // Mark as read with optimistic update
+      if (!emailFromList.read) {
+        markReadMutation.mutate({ emailId, read: true });
       }
     },
     [emails, markReadMutation, viewMode, openEmailModal]
@@ -225,10 +260,24 @@ export const DashboardPage: React.FC = () => {
 
   // ========== KANBAN EMAIL SELECTION HANDLER ==========
   const handleKanbanCardClick = useCallback(
-    (email: Email) => {
-      setSelectedEmail(email);
-      setShowMobileDetail(true);
-      openEmailModal(email);
+    async (email: Email) => {
+      // Clear current selection first to avoid showing stale data
+      setSelectedEmail(null);
+
+      // Fetch full email with body from server
+      try {
+        logger.info(`[EMAIL DETAIL] Fetching full email body for: ${email.id}`);
+        const fullEmail = await emailService.getEmailById(email.id);
+        if (fullEmail) {
+          logger.info(`[EMAIL DETAIL] Successfully loaded email body (${fullEmail.body.length} chars)`);
+          setSelectedEmail(fullEmail);
+          setShowMobileDetail(true);
+          openEmailModal(fullEmail);
+        }
+      } catch (error) {
+        logger.error("Failed to fetch full email", error);
+        toast.error("Failed to load email details");
+      }
 
       // Mark as read with optimistic update
       if (!email.read) {
@@ -380,8 +429,18 @@ export const DashboardPage: React.FC = () => {
   // ========== SEARCH HANDLER ==========
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    // React Query will auto-refetch when searchQuery changes
+    // Search is triggered automatically via debounced query
   }, []);
+  
+  const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, [setSearchQuery]);
+  
+  const handleClearSearch = useCallback(() => {
+    clearSearch();
+    setSelectedEmail(null);
+    setSelectedEmails(new Set());
+  }, [clearSearch]);
 
   // ========== LOAD MORE ==========
   const handleLoadMore = useCallback(() => {
@@ -445,24 +504,25 @@ export const DashboardPage: React.FC = () => {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
-      // Escape to close modals/details
+      // Escape to close modals/details/search
       if (e.key === "Escape") {
         if (showCompose) {
           setShowCompose(false);
           setComposeMode({ type: "new" });
-        }
-        if (showMobileDetail) {
+        } else if (showMobileDetail) {
           setShowMobileDetail(false);
-        }
-        if (deleteModalOpen) {
+        } else if (deleteModalOpen) {
           setDeleteModalOpen(false);
+        } else if (isSearchMode) {
+          // Clear search when ESC is pressed and nothing else is open
+          handleClearSearch();
         }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleViewMode, showCompose, showMobileDetail, deleteModalOpen]);
+  }, [toggleViewMode, showCompose, showMobileDetail, deleteModalOpen, isSearchMode, handleClearSearch]);
 
   // ========== AUTO-LOGOUT ON AUTH ERROR ==========
   useEffect(() => {
@@ -554,13 +614,21 @@ export const DashboardPage: React.FC = () => {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search mail..."
+                placeholder="Search mail (min. 3 characters)..."
                 value={searchQuery}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setSearchQuery(e.target.value)
-                }
-                className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                onChange={handleSearchInputChange}
+                className="w-full pl-10 pr-10 py-2 bg-gray-100 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Clear search"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </form>
 
@@ -688,6 +756,34 @@ export const DashboardPage: React.FC = () => {
                 </div>
               )}
 
+              {/* Search Results Header */}
+              {isSearchMode && debouncedSearchQuery.length >= 3 && (
+                <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">
+                        Search results for "{debouncedSearchQuery}"
+                      </p>
+                      {!isLoadingEmails && (
+                        <p className="text-xs text-blue-700 mt-1">
+                          {emails.length} {emails.length === 1 ? 'email' : 'emails'} found
+                          {emailsData?.pages?.[0]?.pagination && 
+                            ` (${(emailsData.pages[0].pagination as { total?: number }).total || 0} total)`
+                          }
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleClearSearch}
+                      className="px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
+                    >
+                      <X className="w-4 h-4" />
+                      Clear (ESC)
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Email List Content */}
               <div className="flex-1 overflow-y-auto">
                 {isLoadingEmails ? (
@@ -707,12 +803,24 @@ export const DashboardPage: React.FC = () => {
                 ) : emails.length === 0 ? (
                   <div className="p-8 text-center text-gray-500">
                     <Mail className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg font-medium">No emails found</p>
+                    <p className="text-lg font-medium">
+                      {isSearchMode && debouncedSearchQuery.length >= 3
+                        ? `No results for "${debouncedSearchQuery}"`
+                        : "No emails found"}
+                    </p>
                     <p className="text-sm text-gray-400 mt-1">
-                      {searchQuery
-                        ? "Try a different search query"
+                      {isSearchMode && debouncedSearchQuery.length >= 3
+                        ? "Try a different search query or check your spelling"
                         : "This folder is empty"}
                     </p>
+                    {isSearchMode && debouncedSearchQuery.length >= 3 && (
+                      <button
+                        onClick={handleClearSearch}
+                        className="mt-4 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        Back to {activeFolder}
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <EmailList

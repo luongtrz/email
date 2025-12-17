@@ -461,6 +461,7 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
         snippet: email.preview,
         status: email.status,
         aiSummary: email.aiSummary,
+        snoozeUntil: email.snoozeUntil || null,
         updatedAt: metadataMap.get(email.id)?.updatedAt || new Date(),
         date: email.date,
         isUnread: email.read === false,

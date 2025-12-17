@@ -31,6 +31,7 @@ export interface Email {
     size: string;
   }[];
   aiSummary?: string | null; // AI-generated summary from backend
+  snoozeUntil?: string | null; // ISO timestamp when email should be unsnoozed
 }
 
 export interface Folder {
