@@ -263,8 +263,9 @@ export const useRestoreSnoozedMutation = () => {
     mutationFn: () => kanbanService.restoreSnoozed(),
     onSuccess: (data) => {
       if (data.restored > 0) {
-        // Invalidate emails query to refresh the list
+        // Invalidate ALL queries to refresh everywhere
         queryClient.invalidateQueries({ queryKey: ["emails"] });
+        queryClient.invalidateQueries({ queryKey: ["kanban"] }); // Includes all column queries
         toast.success(`📬 ${data.restored} email(s) restored from snooze`);
       }
     },
@@ -275,7 +276,7 @@ export const useRestoreSnoozedMutation = () => {
 };
 
 /**
- * Snooze an email until a specific time
+ * Snooze an email until a specific time with optimistic update
  */
 export const useSnoozeEmailMutation = () => {
   const queryClient = useQueryClient();
@@ -283,15 +284,107 @@ export const useSnoozeEmailMutation = () => {
   return useMutation({
     mutationFn: ({ emailId, until }: { emailId: string; until: Date }) =>
       kanbanService.snoozeEmail(emailId, until),
-    onSuccess: () => {
-      // Invalidate both email queries and kanban queries
-      queryClient.invalidateQueries({ queryKey: ["emails"] });
-      queryClient.invalidateQueries({ queryKey: ["kanban", "emails"] });
-      toast.success("⏰ Email snoozed successfully!");
+    
+    // Optimistic update - move email to SNOOZED column immediately
+    onMutate: async ({ emailId, until }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: kanbanKeys.all });
+
+      // Snapshot previous state for rollback
+      const previousData: Record<string, any> = {};
+      const statuses: KanbanEmailStatusType[] = [
+        KanbanEmailStatus.INBOX,
+        KanbanEmailStatus.TODO,
+        KanbanEmailStatus.IN_PROGRESS,
+        KanbanEmailStatus.DONE,
+        KanbanEmailStatus.SNOOZED,
+      ];
+
+      // Find which column the email is currently in
+      let emailToMove: any = null;
+      let currentStatus: KanbanEmailStatusType | null = null;
+
+      statuses.forEach((status) => {
+        const queryKey = [...kanbanKeys.all, "column", status];
+        const data = queryClient.getQueryData(queryKey);
+        if (data) {
+          previousData[status] = data;
+          const emails = (data as any).emails || [];
+          const found = emails.find((e: any) => e.id === emailId);
+          if (found) {
+            emailToMove = { ...found };
+            currentStatus = status;
+          }
+        }
+      });
+
+      // If email found, perform optimistic update
+      if (emailToMove && currentStatus) {
+        // Update email with snooze data
+        emailToMove.status = KanbanEmailStatus.SNOOZED;
+        emailToMove.snoozeUntil = until.toISOString();
+
+        statuses.forEach((status) => {
+          const queryKey = [...kanbanKeys.all, "column", status];
+          queryClient.setQueryData(queryKey, (old: any) => {
+            if (!old) return old;
+            const emails = old.emails || [];
+            const emailIndex = emails.findIndex((e: any) => e.id === emailId);
+
+            // Remove from current column
+            if (emailIndex !== -1 && status === currentStatus) {
+              return {
+                ...old,
+                emails: emails.filter((e: any) => e.id !== emailId),
+                total: Math.max(0, (old.total || 0) - 1),
+              };
+            }
+
+            // Add to SNOOZED column
+            if (status === KanbanEmailStatus.SNOOZED && status !== currentStatus) {
+              return {
+                ...old,
+                emails: [emailToMove, ...emails],
+                total: (old.total || 0) + 1,
+              };
+            }
+
+            return old;
+          });
+        });
+      }
+
+      return { previousData };
     },
-    onError: (error: any) => {
+
+    // Success - no refetch needed, optimistic update already applied
+    onSuccess: () => {
+      toast.success("Email snoozed successfully!");
+    },
+
+    // Rollback on error
+    onError: (error: any, variables, context) => {
       const message = error?.response?.data?.message || "Failed to snooze email";
       toast.error(message);
+      console.error("Snooze error:", variables);
+
+      // Restore all previous states
+      if (context?.previousData) {
+        const statuses: KanbanEmailStatusType[] = [
+          KanbanEmailStatus.INBOX,
+          KanbanEmailStatus.TODO,
+          KanbanEmailStatus.IN_PROGRESS,
+          KanbanEmailStatus.DONE,
+          KanbanEmailStatus.SNOOZED,
+        ];
+
+        statuses.forEach((status) => {
+          const queryKey = [...kanbanKeys.all, "column", status];
+          if (context.previousData[status]) {
+            queryClient.setQueryData(queryKey, context.previousData[status]);
+          }
+        });
+      }
     },
   });
 };

@@ -137,4 +137,48 @@ export const emailService = {
     );
     return response.data;
   },
+
+  // Search emails with fuzzy matching
+  searchEmails: async (
+    query: string,
+    options?: { page?: number; limit?: number }
+  ): Promise<{ emails: Email[]; pagination: Record<string, unknown> }> => {
+    const params = { q: query, page: options?.page || 1, limit: options?.limit || 20 };
+    logger.info(`[SEARCH API] Calling backend search: ${API_ENDPOINTS.EMAILS.SEARCH}`, { query, page: params.page });
+    const response = await apiClient.get(API_ENDPOINTS.EMAILS.SEARCH, { params });
+    
+    // Transform search response to match Email type
+    // Backend returns: { sender: "Name <email>", ... }
+    // Frontend expects: { from: { name, email }, ... }
+    const emails = (response.data.emails || []).map((email: any) => {
+      // Parse sender string: "Name <email@example.com>" or " <email@example.com>"
+      const senderMatch = email.sender?.match(/^(.*?)\s*<(.+?)>$/);
+      const name = senderMatch ? senderMatch[1].trim() : "";
+      const emailAddr = senderMatch ? senderMatch[2].trim() : email.sender || "";
+      
+      return {
+        id: email.id,
+        from: {
+          name: name || emailAddr.split('@')[0], // Fallback to email username if no name
+          email: emailAddr,
+        },
+        to: [], // Search endpoint doesn't return 'to' field
+        subject: email.subject || "",
+        preview: email.snippet || "",
+        body: email.snippet || "", // Search only returns snippet, not full body
+        date: new Date(email.date),
+        read: false, // Search doesn't return read status
+        starred: false, // Search doesn't return starred status
+        folder: "inbox" as const, // Default folder
+        labelIds: [],
+        attachments: [],
+        threadId: email.id,
+      } as Email;
+    });
+    
+    return {
+      emails,
+      pagination: response.data.pagination || { total: 0, page: 1, limit: 20, totalPages: 1 },
+    };
+  },
 };
