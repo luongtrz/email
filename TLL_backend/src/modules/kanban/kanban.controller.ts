@@ -12,7 +12,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GmailAuthGuard } from '../emails/guards/gmail-auth.guard';
-import { GetEmailsDto } from '../emails/dto/get-emails.dto';
+import { GetKanbanEmailsDto } from './dto/get-kanban-emails.dto';
 import { KanbanEmailsService } from './kanban.service';
 import { KanbanEmail } from './interfaces/kanban-email.interface';
 import { UpdateStatusDto } from './dto/update-status.dto';
@@ -26,13 +26,17 @@ import { SummarizeDto } from './dto/summarize.dto';
 export class KanbanEmailsController {
   constructor(private readonly kanbanEmailsService: KanbanEmailsService) {}
 
-  @Get('emails')
-  @ApiOperation({ summary: 'Get kanban emails merged with metadata' })
-  async getKanbanEmails(
-    @Request() req,
-    @Query() dto: GetEmailsDto,
-  ): Promise<{ emails: KanbanEmail[]; pagination: any }> {
-    return this.kanbanEmailsService.getKanbanEmails(req.user.id, dto);
+ @Get('emails')
+  @ApiOperation({
+    summary: 'Get kanban emails with filtering and sorting',
+    description:
+      'Fetch emails for a specific Kanban column (status) with optional filters (isUnread, hasAttachment, from) and sorting (date_desc, date_asc, sender_asc)',
+  })
+  async getKanbanEmails(@Request() req, @Query() dto: GetKanbanEmailsDto) {
+    return this.kanbanEmailsService.getKanbanEmailsWithFilters(
+      req.user.id,
+      dto,
+    );
   }
 
   @Get('emails/:id/detail')

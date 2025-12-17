@@ -5,6 +5,10 @@ import { EmailsService } from '../emails/emails.service';
 import { GmailApiService } from '../emails/services/gmail-api.service';
 import { GmailParserService } from '../emails/services/gmail-parser.service';
 import { GetEmailsDto } from '../emails/dto/get-emails.dto';
+import {
+  GetKanbanEmailsDto,
+  SortOption,
+} from './dto/get-kanban-emails.dto';
 import { Email } from '../emails/interfaces/email.interface';
 import { EmailMetadata } from '@/database/entities/email-metadata.entity';
 import { KanbanEmailStatus } from '@/database/entities/email-metadata.entity';
@@ -135,6 +139,123 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
     }
   }
 
+  /**
+   * Check if a Gmail message has attachments
+   * @param message - Gmail message object
+   * @returns true if message has attachments, false otherwise
+   */
+  private checkHasAttachment(message: any): boolean {
+    if (!message.payload) return false;
+
+    // Check if payload has parts with filename (attachments)
+    if (message.payload.parts) {
+      return message.payload.parts.some(
+        (part: any) =>
+          part.filename && part.filename.length > 0 && part.body?.attachmentId,
+      );
+    }
+
+    // Check if the main payload has a filename (single attachment)
+    return !!(
+      message.payload.filename &&
+      message.payload.filename.length > 0 &&
+      message.payload.body?.attachmentId
+    );
+  }
+
+  /**
+   * Apply Gmail-based filters to emails
+   * WHY IN-MEMORY FILTERING:
+   * Gmail API does not support complex query combinations for all our filters.
+   * We must fetch emails first, then filter based on Gmail message properties.
+   *
+   * @param messages - Array of Gmail message objects
+   * @param dto - Filter parameters
+   * @returns Filtered array of Gmail messages
+   */
+  private filterEmailsByGmailCriteria(
+    messages: any[],
+    dto: GetKanbanEmailsDto,
+  ): any[] {
+    let filtered = messages;
+
+    // Filter by unread status
+    if (dto.isUnread !== undefined) {
+      filtered = filtered.filter((msg) => {
+        const isUnread = msg.labelIds?.includes('UNREAD') || false;
+        return isUnread === dto.isUnread;
+      });
+    }
+
+    // Filter by attachment presence
+    if (dto.hasAttachment !== undefined) {
+      filtered = filtered.filter((msg) => {
+        const hasAttachment = this.checkHasAttachment(msg);
+        return hasAttachment === dto.hasAttachment;
+      });
+    }
+
+    // Filter by sender email (partial match, case-insensitive)
+    if (dto.from) {
+      const fromLower = dto.from.toLowerCase();
+      filtered = filtered.filter((msg) => {
+        const headers = msg.payload?.headers || [];
+        const fromHeader = headers.find(
+          (h: any) => h.name.toLowerCase() === 'from',
+        );
+        if (!fromHeader) return false;
+        
+        const fromValue = fromHeader.value.toLowerCase();
+        return fromValue.includes(fromLower);
+      });
+    }
+
+    return filtered;
+  }
+
+  /**
+   * Sort emails based on sort option
+   * WHY IN-MEMORY SORTING:
+   * - Emails come from two sources: Gmail API (read-only) and EmailMetadata (database)
+   * - We need to merge data from both sources before sorting
+   * - Gmail API does not support custom sort orders
+   * - Sorting must happen after filtering to ensure correct results
+   *
+   * @param emails - Array of parsed Email objects
+   * @param sortOption - Sort option enum
+   * @returns Sorted array of emails
+   */
+  private sortEmails(emails: KanbanEmail[], sortOption: SortOption): KanbanEmail[] {
+    const sorted = [...emails];
+
+    switch (sortOption) {
+      case SortOption.DATE_DESC:
+        // Newest first (default Gmail behavior)
+        sorted.sort((a, b) => b.date.getTime() - a.date.getTime());
+        break;
+
+      case SortOption.DATE_ASC:
+        // Oldest first
+        sorted.sort((a, b) => a.date.getTime() - b.date.getTime());
+        break;
+
+      case SortOption.SENDER_ASC:
+        // Alphabetical by sender name or email
+        sorted.sort((a, b) => {
+          const senderA = (a.from.name || a.from.email).toLowerCase();
+          const senderB = (b.from.name || b.from.email).toLowerCase();
+          return senderA.localeCompare(senderB);
+        });
+        break;
+
+      default:
+        // Default to date descending
+        sorted.sort((a, b) => b.date.getTime() - a.date.getTime());
+    }
+
+    return sorted;
+  }
+
   async getKanbanEmails(
     userId: string,
     dto: GetEmailsDto,
@@ -146,6 +267,88 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
       emails: this.mergeEmailsWithMetadata(base.emails, metadataMap),
       pagination: base.pagination,
     };
+  }
+
+  async getKanbanEmailsWithFilters(
+    userId: string,
+    dto: GetKanbanEmailsDto,
+  ): Promise<{ items: any[]; total: number }> {
+    const whereClause: any = {
+      userId,
+      status: dto.status,
+    };
+
+    const metadataRecords = await this.emailMetadataRepo.find({
+      where: whereClause,
+    });
+
+    if (metadataRecords.length === 0) {
+      return { items: [], total: 0 };
+    }
+
+    const now = new Date();
+    let filteredMetadata = metadataRecords;
+    if (dto.status !== KanbanEmailStatus.SNOOZED) {
+      filteredMetadata = metadataRecords.filter(
+        (meta) => !meta.snoozeUntil || meta.snoozeUntil <= now,
+      );
+    }
+
+    if (filteredMetadata.length === 0) {
+      return { items: [], total: 0 };
+    }
+
+    const emailIds = filteredMetadata.map((meta) => meta.emailId);
+
+    try {
+      const messages = await this.gmailApiService.getMessages(userId, emailIds);
+      const filteredMessages = this.filterEmailsByGmailCriteria(messages, dto);
+
+      if (filteredMessages.length === 0) {
+        return { items: [], total: 0 };
+      }
+
+      const parsedEmails = filteredMessages.map((msg) =>
+        this.gmailParserService.parseMessage(msg),
+      );
+
+      const metadataMap = await this.getMetadataMap(
+        userId,
+        parsedEmails.map((e) => e.id),
+      );
+      const mergedEmails = this.mergeEmailsWithMetadata(
+        parsedEmails,
+        metadataMap,
+      );
+
+      const sortedEmails = this.sortEmails(mergedEmails, dto.sort);
+
+      const total = sortedEmails.length;
+      const start = dto.offset || 0;
+      const end = start + (dto.limit || 20);
+      const paginatedEmails = sortedEmails.slice(start, end);
+
+      const items = paginatedEmails.map((email) => ({
+        emailId: email.id,
+        sender: `${email.from.name} <${email.from.email}>`,
+        subject: email.subject,
+        snippet: email.preview,
+        status: email.status,
+        aiSummary: email.aiSummary,
+        updatedAt: metadataMap.get(email.id)?.updatedAt || new Date(),
+        date: email.date,
+        isUnread: email.read === false,
+        hasAttachment: email.attachments && email.attachments.length > 0,
+      }));
+
+      return { items, total };
+    } catch (error) {
+      console.error('Error fetching emails from Gmail:', error);
+      if (error.code === 404) {
+        return { items: [], total: 0 };
+      }
+      throw error;
+    }
   }
 
   async getKanbanEmailDetail(
