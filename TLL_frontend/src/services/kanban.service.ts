@@ -30,6 +30,7 @@ export interface KanbanEmail extends Email {
 
 export interface UpdateStatusRequest {
   status: KanbanEmailStatusType;
+  gmailLabelId?: string | null;
 }
 
 export const kanbanService = {
@@ -44,16 +45,16 @@ export const kanbanService = {
     limit?: number;
   }): Promise<{ emails: KanbanEmail[]; pagination: Record<string, unknown> }> => {
     const params: Record<string, unknown> = {};
-    
+
     // Backend expects 'status' (enum), not 'folder'
     if (filters?.status) params.status = filters.status;
-    
+
     // Optional filters
     if (filters?.isUnread !== undefined) params.isUnread = filters.isUnread;
     if (filters?.hasAttachment !== undefined) params.hasAttachment = filters.hasAttachment;
     if (filters?.from) params.from = filters.from;
     if (filters?.sort) params.sort = filters.sort;
-    
+
     // Pagination: backend uses offset/limit, not page/limit
     if (filters?.limit) params.limit = filters.limit;
     if (filters?.page) {
@@ -62,14 +63,14 @@ export const kanbanService = {
     }
 
     const response = await apiClient.get(API_ENDPOINTS.KANBAN.EMAILS, { params });
-    
+
     // Backend returns { items: [], total: number }
     // Transform to match frontend expectation: { emails: [], pagination: {...} }
     const items = response.data.items || [];
     const total = response.data.total || 0;
     const limit = filters?.limit || 20;
     const page = filters?.page || 1;
-    
+
     return {
       emails: items.map((item: any) => ({
         id: item.emailId,
@@ -102,8 +103,16 @@ export const kanbanService = {
   },
 
   // Update email status (for Kanban column moves)
-  updateStatus: async (emailId: string, status: KanbanEmailStatusType): Promise<void> => {
-    await apiClient.patch(API_ENDPOINTS.KANBAN.UPDATE_STATUS(emailId), { status });
+  // Now supports Gmail label sync via hybrid approach
+  updateStatus: async (
+    emailId: string,
+    status: KanbanEmailStatusType,
+    gmailLabelId?: string | null
+  ): Promise<void> => {
+    await apiClient.patch(API_ENDPOINTS.KANBAN.UPDATE_STATUS(emailId), {
+      status,
+      gmailLabelId,
+    });
   },
 
   // Generate AI summary for email
