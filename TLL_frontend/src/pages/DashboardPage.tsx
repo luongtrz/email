@@ -4,7 +4,6 @@ import {
   Mail,
   MailOpen,
   Menu,
-  Search,
   Sparkles,
   Trash2,
   X,
@@ -30,6 +29,7 @@ import { KanbanBoard } from "../components/kanban/KanbanBoard";
 import { KanbanBoardSkeleton } from "../components/kanban/KanbanBoardSkeleton";
 import { DeleteConfirmModal } from "../components/modals/DeleteConfirmModal";
 import { SnoozeModal } from "../components/modals/SnoozeModal";
+import { SearchBar } from "../components/search";
 import { ViewToggle } from "../components/ViewToggle";
 import { logger } from "../lib/logger";
 import { emailService } from "../services/email.service";
@@ -65,6 +65,7 @@ import { useEmailNavigation } from "../hooks/useEmailNavigation";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
 import { useOutsideClick } from "../hooks/useOutsideClick";
 import { useResizable } from "../hooks/useResizable";
+import { useSuggestions } from "../hooks/useSuggestions";
 
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -157,6 +158,9 @@ export const DashboardPage: React.FC = () => {
     () => emailsData?.pages.flatMap((page) => page.emails) || [],
     [emailsData]
   );
+
+  // Generate search suggestions from current emails
+  const suggestions = useSuggestions(emails, searchQuery, 5);
 
   // Apply filtering and sorting for Kanban view
   const processedEmails = useMemo(() => {
@@ -449,15 +453,16 @@ export const DashboardPage: React.FC = () => {
   }, []);
 
   // ========== SEARCH HANDLER ==========
-  const handleSearch = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = useCallback((query: string) => {
     // Search is triggered automatically via debounced query
-  }, []);
-  
-  const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
+    // This is called when user presses Enter or selects a suggestion
+    setSearchQuery(query);
   }, [setSearchQuery]);
-  
+
+  const handleSearchInputChange = useCallback((value: string) => {
+    setSearchQuery(value);
+  }, [setSearchQuery]);
+
   const handleClearSearch = useCallback(() => {
     clearSearch();
     setSelectedEmail(null);
@@ -627,32 +632,14 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* Search Bar */}
-          <form
-            onSubmit={handleSearch}
+          <SearchBar
+            query={searchQuery}
+            onQueryChange={handleSearchInputChange}
+            onSearch={handleSearch}
+            onClear={handleClearSearch}
+            suggestions={suggestions}
             className="flex-1 max-w-2xl hidden md:block"
-          >
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search mail (min. 3 characters)..."
-                value={searchQuery}
-                onChange={handleSearchInputChange}
-                className="w-full pl-10 pr-10 py-2 bg-gray-100 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={handleClearSearch}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  title="Clear search"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
-            </div>
-          </form>
+          />
 
           {/* View Toggle */}
           <ViewToggle className="ml-4" />
