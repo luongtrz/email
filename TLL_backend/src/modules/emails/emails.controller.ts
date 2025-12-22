@@ -24,6 +24,7 @@ import { Email } from './interfaces/email.interface';
 import { GetDetailEmailsDto } from './dto/get-detail-emails.dto';
 import { SearchEmailDto } from './dto/search-email.dto';
 import { GmailSearchService } from './services/gmail-search.service';
+import { EmailContentService } from './services/email-content.service';
 
 @ApiTags('emails')
 @Controller()
@@ -33,6 +34,7 @@ export class EmailsController {
   constructor(
     private readonly emailsService: EmailsService,
     private readonly gmailSearchService: GmailSearchService,
+    private readonly emailContentService: EmailContentService,
   ) {}
 
   @Get('mailboxes')
@@ -176,5 +178,28 @@ export class EmailsController {
   @ApiOperation({ summary: 'Toggle email star (legacy)' })
   async toggleStar(@Request() req, @Param('id') id: string) {
     return this.emailsService.toggleStar(req.user.id, id);
+  }
+
+  @Post('emails/sync')
+  @ApiOperation({ summary: 'Sync emails to database with embeddings' })
+  async syncEmailsToDatabase(
+    @Request() req,
+    @Query('limit') limit?: number,
+  ): Promise<{ synced: number }> {
+    const userId = req.user.id;
+    const emailLimit = limit || 100;
+
+    // Fetch emails from Gmail
+    const result = await this.emailsService.getEmails(userId, {
+      folder: 'inbox',
+      limit: emailLimit,
+    });
+
+    const emails = result.emails || [];
+
+    // Store with embeddings
+    await this.emailContentService.batchStoreEmails(emails, userId);
+
+    return { synced: emails.length };
   }
 }
