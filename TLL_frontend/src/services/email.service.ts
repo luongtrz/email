@@ -146,7 +146,7 @@ export const emailService = {
     const params = { q: query, page: options?.page || 1, limit: options?.limit || 20 };
     logger.info(`[SEARCH API] Calling backend search: ${API_ENDPOINTS.EMAILS.SEARCH}`, { query, page: params.page });
     const response = await apiClient.get(API_ENDPOINTS.EMAILS.SEARCH, { params });
-    
+
     // Transform search response to match Email type
     // Backend returns: { sender: "Name <email>", ... }
     // Frontend expects: { from: { name, email }, ... }
@@ -155,7 +155,7 @@ export const emailService = {
       const senderMatch = email.sender?.match(/^(.*?)\s*<(.+?)>$/);
       const name = senderMatch ? senderMatch[1].trim() : "";
       const emailAddr = senderMatch ? senderMatch[2].trim() : email.sender || "";
-      
+
       return {
         id: email.id,
         from: {
@@ -175,10 +175,56 @@ export const emailService = {
         threadId: email.id,
       } as Email;
     });
-    
+
     return {
       emails,
       pagination: response.data.pagination || { total: 0, page: 1, limit: 20, totalPages: 1 },
+    };
+  },
+
+  // Semantic search with vector embeddings
+  semanticSearch: async (
+    query: string,
+    options?: { limit?: number; minSimilarity?: number }
+  ): Promise<{ emails: Email[]; pagination: Record<string, unknown> }> => {
+    const params = {
+      q: query,
+      limit: options?.limit || 20,
+      minSimilarity: options?.minSimilarity || 0.5,
+    };
+
+    logger.info(`[SEMANTIC SEARCH API] Calling backend: ${API_ENDPOINTS.SEARCH.SEMANTIC}`, { query });
+    const response = await apiClient.post(API_ENDPOINTS.SEARCH.SEMANTIC, params);
+
+    // Backend returns: SemanticSearchResult[]
+    // Transform to match Email type
+    const emails = (response.data || []).map((result: any) => ({
+      id: result.emailId,
+      from: result.from || { name: "", email: "" },
+      to: result.to || [],
+      subject: result.subject || "",
+      preview: result.bodyPreview || "",
+      body: result.bodyPreview || "",
+      date: new Date(result.date),
+      read: false, // Semantic search doesn't return read status
+      starred: false,
+      folder: "inbox" as const,
+      labelIds: [],
+      attachments: [],
+      threadId: result.emailId,
+      // Additional semantic search metadata
+      similarity: result.similarity,
+      source: result.source, // 'semantic' | 'keyword' | 'both'
+    })) as Email[];
+
+    return {
+      emails,
+      pagination: {
+        total: emails.length,
+        page: 1,
+        limit: params.limit,
+        totalPages: 1,
+      },
     };
   },
 };

@@ -19,6 +19,8 @@ import { entities } from './database/entities';
 import { AuthModule } from './modules/auth/auth.module';
 import { EmailsModule } from './modules/emails/emails.module';
 import { KanbanEmailsModule } from './modules/kanban/kanban.module';
+import { SearchModule } from './modules/search/search.module';
+import { EmbeddingModule } from './modules/embeddings/embedding.module';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { KanbanEmailsModule } from './modules/kanban/kanban.module';
     AuthModule,
     EmailsModule,
     KanbanEmailsModule,
+    SearchModule,
+    EmbeddingModule,
   ],
   providers: [
     {

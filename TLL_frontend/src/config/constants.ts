@@ -24,6 +24,10 @@ export const API_ENDPOINTS = {
     REPLY: (id: string) => `/api/emails/${id}/reply`,
     FORWARD: (id: string) => `/api/emails/${id}/forward`,
     ATTACHMENT: (attachmentId: string, messageId: string) => `/api/attachments/${attachmentId}?messageId=${messageId}`,
+    SYNC: '/api/emails/sync',
+  },
+  SEARCH: {
+    SEMANTIC: '/api/search/semantic',
   },
   KANBAN: {
     EMAILS: '/api/kanban/emails',
