@@ -35,6 +35,7 @@ import { logger } from "../lib/logger";
 import { emailService } from "../services/email.service";
 import { useAuthStore } from "../store/auth.store";
 import { useDashboardStore } from "../store/dashboard.store";
+import { useKanbanConfigStore } from "../store/kanbanConfig.store";
 import type { Email } from "../types/email.types";
 import { DEFAULT_KANBAN_COLUMNS } from "../types/kanban.types";
 import { filterEmails, sortEmails } from "../utils/email.utils";
@@ -68,6 +69,7 @@ import { useResizable } from "../hooks/useResizable";
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuthStore();
   const { viewMode, toggleViewMode, searchQuery, isSearchMode, setSearchQuery, clearSearch, filterMode, sortBy } = useDashboardStore();
+  const { columns: configColumns, isInitialized } = useKanbanConfigStore();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
   
@@ -414,24 +416,28 @@ export const DashboardPage: React.FC = () => {
         setSnoozeModalOpen(true);
         return;
       }
-      
-      // Find target column to get backend status
-      const targetColumn = DEFAULT_KANBAN_COLUMNS.find(col => col.id === targetColumnId);
+
+      // Use config columns if available, otherwise fallback to defaults
+      const columns = isInitialized ? configColumns : DEFAULT_KANBAN_COLUMNS;
+
+      // Find target column to get backend status and Gmail label
+      const targetColumn = columns.find(col => col.id === targetColumnId);
       if (!targetColumn) return;
-      
-      // In Kanban view: update status
+
+      // In Kanban view: update status with optional Gmail label
       if (viewMode === "kanban") {
-        updateStatusMutation.mutate({ 
-          emailId, 
-          status: targetColumn.status // Send backend status: INBOX, TODO, etc.
+        updateStatusMutation.mutate({
+          emailId,
+          status: targetColumn.status, // Send backend status: INBOX, TODO, etc.
+          gmailLabelId: ('gmailLabelId' in targetColumn) ? (targetColumn.gmailLabelId as string | null) : null // Send Gmail label ID if mapped
         });
-      } 
+      }
       // In List view: move to Gmail folder
       else {
         moveMutation.mutate({ emailId, folder: targetColumnId });
       }
     },
-    [viewMode, moveMutation, updateStatusMutation]
+    [viewMode, moveMutation, updateStatusMutation, isInitialized, configColumns]
   );
 
   // ========== FOLDER CHANGE HANDLER ==========

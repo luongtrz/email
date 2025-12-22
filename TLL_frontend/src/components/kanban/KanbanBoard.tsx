@@ -9,10 +9,12 @@ import {
   type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { Eye, EyeOff, Filter, ArrowUpDown, MailOpen, Star, Paperclip } from "lucide-react";
+import { Eye, EyeOff, Filter, ArrowUpDown, MailOpen, Star, Paperclip, Settings } from "lucide-react";
 import { useDashboardStore } from "../../store/dashboard.store";
+import { useKanbanConfigStore, initializeKanbanConfig } from "../../store/kanbanConfig.store";
 import { KanbanColumn } from "./KanbanColumn";
 import { KanbanCard } from "./KanbanCard";
+import { KanbanSettingsModal } from "../modals/KanbanSettingsModal";
 import {
   DEFAULT_KANBAN_COLUMNS,
   createCardsFromEmails,
@@ -34,7 +36,7 @@ interface KanbanBoardProps {
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   emails,
-  columns = DEFAULT_KANBAN_COLUMNS,
+  columns: propColumns,
   onCardClick,
   onCardStar,
   onEmailMove,
@@ -47,10 +49,25 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   );
   const [originalColumnId, setOriginalColumnId] = React.useState<string | null>(null);
   const [showSnoozed, setShowSnoozed] = React.useState<boolean>(true);
+  const [showSettingsModal, setShowSettingsModal] = React.useState<boolean>(false);
+
+  // Get columns from config store or use prop columns (with fallback to defaults)
+  const { columns: storeColumns, isInitialized } = useKanbanConfigStore();
+
+  // Initialize config store on mount
+  React.useEffect(() => {
+    if (!isInitialized) {
+      initializeKanbanConfig();
+    }
+  }, [isInitialized]);
+
+  // Use store columns if available, otherwise fallback to prop columns or defaults
+  const columns = isInitialized ? storeColumns : (propColumns || DEFAULT_KANBAN_COLUMNS);
+
   const [cards, setCards] = React.useState<KanbanCardType[]>(() =>
     createCardsFromEmails(emails, columns)
   );
-  
+
   // Get filter and sort state from store
   const { filterMode, setFilterMode, sortBy, setSortBy } = useDashboardStore();
 
@@ -215,33 +232,45 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           )}
         </div>
 
-        {/* Right: Snoozed Toggle */}
-        <button
-          onClick={() => setShowSnoozed(!showSnoozed)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-            showSnoozed
-              ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              : "bg-purple-50 text-purple-600 hover:bg-purple-100"
-          }`}
-          title={showSnoozed ? "Hide Snoozed Column" : "Show Snoozed Column"}
-        >
-          {showSnoozed ? (
-            <>
-              <EyeOff className="w-4 h-4" />
-              <span className="text-sm font-medium">Hide Snoozed</span>
-            </>
-          ) : (
-            <>
-              <Eye className="w-4 h-4" />
-              <span className="text-sm font-medium">Show Snoozed</span>
-              {cardsByColumn["snoozed"]?.length > 0 && (
-                <span className="px-2 py-0.5 bg-purple-500 text-white text-xs rounded-full">
-                  {cardsByColumn["snoozed"].length}
-                </span>
-              )}
-            </>
-          )}
-        </button>
+        {/* Right: Settings and Snoozed Toggle */}
+        <div className="flex items-center gap-2">
+          {/* Settings Button */}
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            title="Configure Columns"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+
+          {/* Snoozed Toggle */}
+          <button
+            onClick={() => setShowSnoozed(!showSnoozed)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+              showSnoozed
+                ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                : "bg-purple-50 text-purple-600 hover:bg-purple-100"
+            }`}
+            title={showSnoozed ? "Hide Snoozed Column" : "Show Snoozed Column"}
+          >
+            {showSnoozed ? (
+              <>
+                <EyeOff className="w-4 h-4" />
+                <span className="text-sm font-medium">Hide Snoozed</span>
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4" />
+                <span className="text-sm font-medium">Show Snoozed</span>
+                {cardsByColumn["snoozed"]?.length > 0 && (
+                  <span className="px-2 py-0.5 bg-purple-500 text-white text-xs rounded-full">
+                    {cardsByColumn["snoozed"].length}
+                  </span>
+                )}
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       <DndContext
@@ -277,6 +306,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {/* Settings Modal */}
+      <KanbanSettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+      />
     </>
   );
 };

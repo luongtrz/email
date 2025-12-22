@@ -528,6 +528,28 @@ ${dto.body || ''}
     }
   }
 
+  // Get Gmail labels for Kanban column configuration
+  async getGmailLabels(userId: string) {
+    try {
+      const labels = await this.gmailApiService.listLabels(userId);
+
+      // Filter out system labels we don't want users to map to columns
+      // We exclude labels that are already used for mailbox folders or are internal
+      const filteredLabels = labels.filter(label =>
+        !['INBOX', 'SENT', 'DRAFT', 'SPAM', 'TRASH', 'UNREAD', 'STARRED', 'IMPORTANT', 'CATEGORY_PERSONAL', 'CATEGORY_SOCIAL', 'CATEGORY_PROMOTIONS', 'CATEGORY_UPDATES', 'CATEGORY_FORUMS'].includes(label.id)
+      );
+
+      // Sort: user labels first, then system labels
+      return filteredLabels.sort((a, b) => {
+        if (a.type === 'user' && b.type !== 'user') return -1;
+        if (a.type !== 'user' && b.type === 'user') return 1;
+        return a.name.localeCompare(b.name);
+      });
+    } catch (error) {
+      throw new BadRequestException('Failed to fetch Gmail labels: ' + error.message);
+    }
+  }
+
   // Legacy methods for backward compatibility
   async markAsRead(userId: string, emailId: string) {
     return this.modifyEmail(userId, emailId, { markAsRead: true });

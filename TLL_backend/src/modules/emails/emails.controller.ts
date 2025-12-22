@@ -61,6 +61,15 @@ export class EmailsController {
     return this.emailsService.sendEmail(req.user.id, dto);
   }
 
+  @Get('emails/labels')
+  @ApiOperation({
+    summary: 'Get all Gmail labels for the user',
+    description: 'Fetches all Gmail labels (both system and user-created) for use in Kanban column configuration',
+  })
+  async getLabels(@Request() req) {
+    return this.emailsService.getGmailLabels(req.user.id);
+  }
+
   @Get('emails/search')
   @ApiOperation({
     summary: 'Search emails with fuzzy matching (pseudo-fuzzy via Gmail API)',
