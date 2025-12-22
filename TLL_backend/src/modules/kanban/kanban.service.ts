@@ -515,6 +515,23 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
 
     const saved = await this.emailMetadataRepo.save(metadata);
 
+    // Sync Gmail label if provided (hybrid approach)
+    // This is supplementary - we don't fail the operation if label sync fails
+    if (dto.gmailLabelId) {
+      try {
+        await this.gmailApiService.modifyMessage(
+          userId,
+          emailId,
+          [dto.gmailLabelId], // Add this label
+          [],                 // Don't remove any labels
+        );
+      } catch (error) {
+        // Log error but don't fail the status update
+        // The database status is the source of truth
+        console.error(`Failed to apply Gmail label ${dto.gmailLabelId} to email ${emailId}:`, error.message);
+      }
+    }
+
     return {
       emailId,
       status: saved.status,

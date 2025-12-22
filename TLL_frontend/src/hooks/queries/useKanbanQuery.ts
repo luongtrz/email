@@ -228,9 +228,17 @@ export const useUpdateStatusMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ emailId, status }: { emailId: string; status: KanbanEmailStatusType }) =>
-      kanbanService.updateStatus(emailId, status),
-    
+    mutationFn: ({
+      emailId,
+      status,
+      gmailLabelId
+    }: {
+      emailId: string;
+      status: KanbanEmailStatusType;
+      gmailLabelId?: string | null;
+    }) =>
+      kanbanService.updateStatus(emailId, status, gmailLabelId),
+
     // Optimistic update: Move email immediately before API call
     onMutate: async ({ emailId, status: newStatus }) => {
       // Cancel outgoing refetches to avoid overwriting optimistic update
