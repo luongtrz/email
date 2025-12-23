@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { GetEmailsDto } from './dto/get-emails.dto';
 import { SendEmailDto } from './dto/send-email.dto';
@@ -9,6 +10,7 @@ import { ModifyEmailDto } from './dto/modify-email.dto';
 import { Email } from './interfaces/email.interface';
 import { GmailApiService } from './services/gmail-api.service';
 import { GmailParserService } from './services/gmail-parser.service';
+import { EmailContentService } from './services/email-content.service';
 
 @Injectable()
 export class EmailsService {
@@ -33,9 +35,12 @@ export class EmailsService {
     starred: 'STARRED',
   };
 
+  private readonly logger = new Logger(EmailsService.name);
+
   constructor(
     private gmailApiService: GmailApiService,
     private gmailParserService: GmailParserService,
+    private emailContentService: EmailContentService,
   ) {}
 
   async getMailboxes(userId: string) {
@@ -144,6 +149,13 @@ export class EmailsService {
     const start = (page - 1) * limit;
     const paginatedEmails = emails.slice(start, start + limit);
 
+    // Auto-sync if requested (fire-and-forget)
+    if (dto.autoSync) {
+      this.autoSyncEmails(paginatedEmails, userId).catch((err) => {
+        this.logger.warn(`Auto-sync failed for user ${userId}: ${err.message}`);
+      });
+    }
+
     return {
       emails: paginatedEmails,
       pagination: {
@@ -156,6 +168,16 @@ export class EmailsService {
         nextPageToken: result.nextPageToken,
       },
     };
+  }
+
+  /**
+   * Auto-sync emails with embeddings in background
+   * Fire-and-forget pattern - errors are logged but don't block the request
+   */
+  private async autoSyncEmails(emails: Email[], userId: string): Promise<void> {
+    this.logger.log(`Auto-syncing ${emails.length} emails for user ${userId}`);
+    const results = await this.emailContentService.batchStoreEmails(emails, userId);
+    this.logger.log(`Auto-sync completed: ${results.synced} synced, ${results.failed} failed`);
   }
 
   async getEmailById(userId: string, emailId: string): Promise<Email> {

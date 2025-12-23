@@ -40,12 +40,14 @@ export class EmailContent {
   date: Date;
 
   // Vector embedding column (pgvector)
+  // Note: Actual DB type is vector(768), but TypeORM doesn't support it natively
+  // So we declare as text here and let migrations handle the real type
   @Column({
-    type: 'varchar',
+    type: 'text',
     nullable: true,
   })
   @Index('email_contents_embedding_idx', { synchronize: false }) // Created via migration
-  embedding?: string; // TypeORM stores vectors as strings (e.g., "[0.1, 0.2, ...]")
+  embedding?: string; // Stored as vector(768) in DB via migration
 
   @Column({ name: 'embedding_model', type: 'varchar', nullable: true })
   embeddingModel?: string;

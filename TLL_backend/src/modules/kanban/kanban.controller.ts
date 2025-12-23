@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -19,6 +20,8 @@ import { KanbanEmail } from './interfaces/kanban-email.interface';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { SnoozeDto } from './dto/snooze.dto';
 import { SummarizeDto } from './dto/summarize.dto';
+import { CreateColumnDto } from './dto/create-column.dto';
+import { UpdateColumnDto } from './dto/update-column.dto';
 
 @ApiTags('kanban')
 @Controller('kanban')
@@ -105,6 +108,35 @@ export class KanbanEmailsController {
   @ApiOperation({ summary: 'Semantic search over emails (placeholder)' })
   async semanticSearch(@Request() req, @Query('q') query: string) {
     return this.kanbanEmailsService.semanticSearch(req.user.id, query);
+  }
+
+  @Get('columns')
+  @ApiOperation({ summary: 'Get user kanban columns' })
+  async getUserColumns(@Request() req) {
+    return this.kanbanEmailsService.getUserColumns(req.user.id);
+  }
+
+  @Post('columns')
+  @ApiOperation({ summary: 'Create new kanban column' })
+  async createColumn(@Request() req, @Body() dto: CreateColumnDto) {
+    return this.kanbanEmailsService.createColumn(req.user.id, dto);
+  }
+
+  @Patch('columns/:columnId')
+  @ApiOperation({ summary: 'Update kanban column' })
+  async updateColumn(
+    @Request() req,
+    @Param('columnId') columnId: string,
+    @Body() dto: UpdateColumnDto,
+  ) {
+    return this.kanbanEmailsService.updateColumn(req.user.id, columnId, dto);
+  }
+
+  @Delete('columns/:columnId')
+  @ApiOperation({ summary: 'Delete kanban column' })
+  async deleteColumn(@Request() req, @Param('columnId') columnId: string) {
+    await this.kanbanEmailsService.deleteColumn(req.user.id, columnId);
+    return { success: true };
   }
 }
 
