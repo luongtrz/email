@@ -1,19 +1,23 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { KanbanEmailStatus } from '@/database/entities/email-metadata.entity';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateStatusDto {
-  @ApiProperty({ enum: KanbanEmailStatus })
-  @IsEnum(KanbanEmailStatus)
-  status: KanbanEmailStatus;
+  @ApiProperty({ description: 'Column ID to move email to' })
+  @IsUUID()
+  columnId: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Gmail label ID to apply when moving to this column',
-    required: false,
-    nullable: true
   })
   @IsOptional()
   @IsString()
   gmailLabelId?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Previous Gmail label ID to remove when moving columns',
+  })
+  @IsOptional()
+  @IsString()
+  previousGmailLabelId?: string | null;
 }
 

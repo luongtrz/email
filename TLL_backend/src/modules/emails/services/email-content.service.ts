@@ -62,19 +62,34 @@ export class EmailContentService {
   /**
    * Batch store emails (for initial sync)
    */
-  async batchStoreEmails(emails: any[], userId: string): Promise<void> {
+  async batchStoreEmails(
+    emails: any[],
+    userId: string,
+  ): Promise<{ synced: number; failed: number }> {
+    let synced = 0;
+    let failed = 0;
+
     for (const email of emails) {
-      await this.storeEmailWithEmbedding({
-        emailId: email.id,
-        userId,
-        subject: email.subject,
-        body: email.body,
-        bodyPreview: email.preview,
-        from: email.from,
-        to: email.to,
-        date: email.date,
-      });
+      try {
+        await this.storeEmailWithEmbedding({
+          emailId: email.id,
+          userId,
+          subject: email.subject,
+          body: email.body || email.preview, // Use preview if body not available
+          bodyPreview: email.preview,
+          from: email.from,
+          to: email.to,
+          date: email.date,
+        });
+        synced++;
+      } catch (error) {
+        console.error(`Failed to store email ${email.id}:`, error.message);
+        failed++;
+        // Continue with next email instead of stopping
+      }
     }
+
+    return { synced, failed };
   }
 
   /**
