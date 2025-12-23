@@ -56,7 +56,7 @@ export interface GmailLabel {
  */
 export type CreateColumnInput = Omit<
   KanbanColumnConfig,
-  'id' | 'createdAt' | 'updatedAt'
+  'id' | 'createdAt' | 'updatedAt' | 'isSystem'
 >;
 
 /**

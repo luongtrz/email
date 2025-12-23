@@ -18,11 +18,13 @@ export const emailService = {
     search?: string;
     page?: number;
     limit?: number;
+    autoSync?: boolean; // Auto-sync emails with embeddings
   }): Promise<{ emails: Email[]; pagination: Record<string, unknown> }> => {
     const params: Record<string, unknown> = {};
     if (filters?.search) params.search = filters.search;
     if (filters?.page) params.page = filters.page;
     if (filters?.limit) params.limit = filters.limit;
+    if (filters?.autoSync !== undefined) params.autoSync = filters.autoSync;
 
     let response;
     if (filters?.folder) {
