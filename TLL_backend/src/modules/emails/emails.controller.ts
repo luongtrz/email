@@ -185,9 +185,9 @@ export class EmailsController {
   async syncEmailsToDatabase(
     @Request() req,
     @Query('limit') limit?: number,
-  ): Promise<{ synced: number }> {
+  ): Promise<{ synced: number; failed: number; total: number }> {
     const userId = req.user.id;
-    const emailLimit = limit || 100;
+    const emailLimit = limit || 20; // Start with smaller default
 
     // Fetch emails from Gmail
     const result = await this.emailsService.getEmails(userId, {
@@ -198,8 +198,12 @@ export class EmailsController {
     const emails = result.emails || [];
 
     // Store with embeddings
-    await this.emailContentService.batchStoreEmails(emails, userId);
+    const results = await this.emailContentService.batchStoreEmails(emails, userId);
 
-    return { synced: emails.length };
+    return {
+      synced: results.synced,
+      failed: results.failed,
+      total: emails.length,
+    };
   }
 }

@@ -35,9 +35,9 @@ import { logger } from "../lib/logger";
 import { emailService } from "../services/email.service";
 import { useAuthStore } from "../store/auth.store";
 import { useDashboardStore } from "../store/dashboard.store";
-import { useKanbanConfigStore } from "../store/kanbanConfig.store";
+import { useKanbanConfigStore, initializeKanbanConfig } from "../store/kanbanConfig.store";
 import type { Email } from "../types/email.types";
-import { DEFAULT_KANBAN_COLUMNS } from "../types/kanban.types";
+import { DEFAULT_COLUMNS } from "../utils/kanban-storage.utils";
 import { filterEmails, sortEmails } from "../utils/email.utils";
 
 // ========== REACT QUERY HOOKS ==========
@@ -47,7 +47,7 @@ import {
   useMailboxesQuery,
   useMarkEmailReadMutation,
   useMoveEmailMutation,
-  useSearchEmailsQuery,
+  useSemanticSearchQuery,
   useStarEmailMutation,
 } from "../hooks/queries/useEmailsQuery";
 
@@ -101,12 +101,22 @@ export const DashboardPage: React.FC = () => {
 
   // ========== REACT QUERY HOOKS ==========
   // Use Kanban API when in Kanban view to get metadata (status, snoozeUntil)
-  const kanbanData = useAllKanbanColumnsQuery(20); // Fetch all columns for Kanban view (20 emails per column per page)
+  // Map configColumns to format expected by useAllKanbanColumnsQuery
+  // Use DEFAULT_COLUMNS as fallback if store not initialized or empty
+  // Memoize to prevent hook order violations
+  const columnConfigs = useMemo(() => {
+    const columnsToUse = (isInitialized && configColumns.length > 0) ? configColumns : DEFAULT_COLUMNS;
+    return columnsToUse.map(col => ({ id: col.id, status: col.status }));
+  }, [isInitialized, configColumns]);
+
+  const kanbanData = useAllKanbanColumnsQuery(columnConfigs, 20); // Fetch all columns for Kanban view (20 emails per column per page)
   
   // Search query hook (only active when search mode is enabled)
-  const searchResults = useSearchEmailsQuery(
+  // Uses semantic search with vector embeddings for conceptual relevance
+  const searchResults = useSemanticSearchQuery(
     debouncedSearchQuery,
-    20
+    20,      // limit
+    0.3      // minSimilarity threshold (lowered from 0.5 for better recall)
   );
   
   // Folder query hook (DISABLED when in search mode to prevent dual API calls)
@@ -222,6 +232,13 @@ export const DashboardPage: React.FC = () => {
   }, [emailsError]);
 
   const isGmailNotConnected = checkGmailConnection();
+
+  // ========== INITIALIZE KANBAN CONFIG STORE ==========
+  useEffect(() => {
+    if (!isInitialized) {
+      initializeKanbanConfig();
+    }
+  }, [isInitialized]);
 
   // ========== AUTO RESTORE SNOOZED EMAILS ==========
   useEffect(() => {
@@ -422,18 +439,44 @@ export const DashboardPage: React.FC = () => {
       }
 
       // Use config columns if available, otherwise fallback to defaults
-      const columns = isInitialized ? configColumns : DEFAULT_KANBAN_COLUMNS;
+      const columns = isInitialized ? configColumns : DEFAULT_COLUMNS;
 
       // Find target column to get backend status and Gmail label
       const targetColumn = columns.find(col => col.id === targetColumnId);
       if (!targetColumn) return;
 
-      // In Kanban view: update status with optional Gmail label
+      // Find source column to get previous Gmail label
+      const email = processedEmails.find(e => e.id === emailId);
+      if (!email) {
+        console.warn('[handleEmailMove] Email not found:', emailId);
+        return;
+      }
+
+      const currentStatus = (email as any).status as KanbanEmailStatusType | undefined;
+      const sourceColumn = currentStatus
+        ? columns.find(col => col.status === currentStatus)
+        : null;
+
+      const targetGmailLabelId = targetColumn.gmailLabelId ?? null;
+      const previousGmailLabelId = sourceColumn?.gmailLabelId ?? null;
+
+      console.log('[handleEmailMove] Moving email:', {
+        emailId,
+        currentStatus,
+        targetStatus: targetColumn.status,
+        sourceColumnId: sourceColumn?.id,
+        targetColumnId: targetColumn.id,
+        previousGmailLabelId,
+        targetGmailLabelId,
+      });
+
+      // In Kanban view: update column with optional Gmail label
       if (viewMode === "kanban") {
         updateStatusMutation.mutate({
           emailId,
-          status: targetColumn.status, // Send backend status: INBOX, TODO, etc.
-          gmailLabelId: ('gmailLabelId' in targetColumn) ? (targetColumn.gmailLabelId as string | null) : null // Send Gmail label ID if mapped
+          columnId: targetColumn.id, // Send target column ID instead of status
+          gmailLabelId: targetGmailLabelId,
+          previousGmailLabelId
         });
       }
       // In List view: move to Gmail folder
@@ -441,7 +484,7 @@ export const DashboardPage: React.FC = () => {
         moveMutation.mutate({ emailId, folder: targetColumnId });
       }
     },
-    [viewMode, moveMutation, updateStatusMutation, isInitialized, configColumns]
+    [viewMode, moveMutation, updateStatusMutation, isInitialized, configColumns, processedEmails]
   );
 
   // ========== FOLDER CHANGE HANDLER ==========
@@ -952,7 +995,7 @@ export const DashboardPage: React.FC = () => {
             ) : (
               <KanbanBoard
                 emails={processedEmails}
-                columns={DEFAULT_KANBAN_COLUMNS}
+                columns={isInitialized ? configColumns : DEFAULT_COLUMNS}
                 onCardClick={handleKanbanCardClick}
                 onCardStar={handleToggleStar}
                 onEmailMove={handleEmailMove}

@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, Min } from 'class-validator';
+import { IsOptional, IsString, IsInt, Min, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class GetDetailEmailsDto {
@@ -21,4 +21,13 @@ export class GetDetailEmailsDto {
   @IsInt()
   @Min(1)
   limit?: number = 20;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Automatically sync emails with embeddings in background'
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  autoSync?: boolean = false;
 }

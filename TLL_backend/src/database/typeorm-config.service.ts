@@ -19,7 +19,7 @@ export default registerAs(
       migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
       migrationsTableName: 'migrations',
       migrationsRun: false,
-      synchronize: process.env.NODE_ENV === 'development', // Auto-create tables in development
+      synchronize: false, // Disabled - use migrations instead (required for pgvector support)
       extra: {
         max: config.maxConnections,
         ssl: config.sslEnabled ? {

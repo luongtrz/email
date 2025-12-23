@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, LessThanOrEqual, Repository } from 'typeorm';
+import { In, IsNull, LessThanOrEqual, Repository } from 'typeorm';
 import { EmailsService } from '../emails/emails.service';
 import { GmailApiService } from '../emails/services/gmail-api.service';
 import { GmailParserService } from '../emails/services/gmail-parser.service';
@@ -13,10 +13,13 @@ import { GetInitialKanbanEmailsDto, InitialLoadFolder } from './dto/get-initial-
 import { Email } from '../emails/interfaces/email.interface';
 import { EmailMetadata } from '@/database/entities/email-metadata.entity';
 import { KanbanEmailStatus } from '@/database/entities/email-metadata.entity';
+import { KanbanColumn } from '@/database/entities/kanban-column.entity';
 import { KanbanEmail } from './interfaces/kanban-email.interface';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { SnoozeDto } from './dto/snooze.dto';
 import { SummarizeDto } from './dto/summarize.dto';
+import { CreateColumnDto } from './dto/create-column.dto';
+import { UpdateColumnDto } from './dto/update-column.dto';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -28,6 +31,8 @@ export class KanbanEmailsService {
     private gmailParserService: GmailParserService,
     @InjectRepository(EmailMetadata)
     private emailMetadataRepo: Repository<EmailMetadata>,
+    @InjectRepository(KanbanColumn)
+    private kanbanColumnRepo: Repository<KanbanColumn>,
     private configService: ConfigService,
   ) {}
 
@@ -376,10 +381,18 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
     userId: string,
     dto: GetKanbanEmailsDto,
   ): Promise<{ items: any[]; total: number }> {
-    const whereClause: any = {
-      userId,
-      status: dto.status,
-    };
+    const whereClause: any = { userId };
+
+    // NEW: Prefer columnId if provided
+    if (dto.columnId) {
+      whereClause.columnId = dto.columnId;
+    }
+    // FALLBACK: Use status for backward compatibility
+    else if (dto.status) {
+      whereClause.status = dto.status;
+      // Only return emails without columnId (legacy emails)
+      whereClause.columnId = IsNull();
+    }
 
     let metadataRecords = await this.emailMetadataRepo.find({
       where: whereClause,
@@ -507,28 +520,50 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
   }> {
     const metadata = await this.ensureMetadata(userId, emailId);
     metadata.previousStatus = metadata.status;
-    metadata.status = dto.status;
 
-    if (dto.status !== KanbanEmailStatus.SNOOZED) {
-      metadata.snoozeUntil = null;
+    // Update column assignment
+    metadata.columnId = dto.columnId;
+
+    // Also update status based on column's status (for backward compatibility)
+    const column = await this.kanbanColumnRepo.findOne({
+      where: { id: dto.columnId, userId },
+    });
+
+    if (column) {
+      metadata.status = column.status as KanbanEmailStatus;
+
+      if (column.status !== KanbanEmailStatus.SNOOZED) {
+        metadata.snoozeUntil = null;
+      }
     }
 
     const saved = await this.emailMetadataRepo.save(metadata);
 
-    // Sync Gmail label if provided (hybrid approach)
+    // Sync Gmail labels: add new custom label, remove old custom label
     // This is supplementary - we don't fail the operation if label sync fails
-    if (dto.gmailLabelId) {
+    if (dto.gmailLabelId || dto.previousGmailLabelId) {
       try {
-        await this.gmailApiService.modifyMessage(
-          userId,
-          emailId,
-          [dto.gmailLabelId], // Add this label
-          [],                 // Don't remove any labels
-        );
+        const labelsToAdd: string[] = dto.gmailLabelId ? [dto.gmailLabelId] : [];
+        const labelsToRemove: string[] = [];
+
+        // Remove previous custom label (NOT system labels like INBOX, SENT)
+        if (dto.previousGmailLabelId && !this.isSystemLabel(dto.previousGmailLabelId)) {
+          labelsToRemove.push(dto.previousGmailLabelId);
+        }
+
+        // Apply label changes if there are any
+        if (labelsToAdd.length > 0 || labelsToRemove.length > 0) {
+          await this.gmailApiService.modifyMessage(
+            userId,
+            emailId,
+            labelsToAdd,
+            labelsToRemove,
+          );
+        }
       } catch (error) {
         // Log error but don't fail the status update
         // The database status is the source of truth
-        console.error(`Failed to apply Gmail label ${dto.gmailLabelId} to email ${emailId}:`, error.message);
+        console.error(`Failed to sync Gmail labels for email ${emailId}:`, error.message);
       }
     }
 
@@ -652,6 +687,112 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
         nextPageToken: result.nextPageToken,
       },
     };
+  }
+
+  /**
+   * Check if a Gmail label ID is a system label
+   * System labels should not be removed when cleaning up custom labels
+   */
+  private isSystemLabel(labelId: string): boolean {
+    const systemLabels = ['INBOX', 'SENT', 'DRAFT', 'TRASH', 'SPAM', 'IMPORTANT', 'STARRED', 'UNREAD'];
+    return systemLabels.includes(labelId);
+  }
+
+  /**
+   * Get all columns for user
+   */
+  async getUserColumns(userId: string): Promise<KanbanColumn[]> {
+    const existing = await this.kanbanColumnRepo.find({
+      where: { userId },
+      order: { order: 'ASC' },
+    });
+
+    // Auto-initialize default columns if user has none
+    if (existing.length === 0) {
+      return this.initializeDefaultColumns(userId);
+    }
+
+    return existing;
+  }
+
+  /**
+   * Create a new kanban column
+   */
+  async createColumn(userId: string, dto: CreateColumnDto): Promise<KanbanColumn> {
+    // Automatically set isSystem for Snoozed columns
+    const isSystem = dto.status === KanbanEmailStatus.SNOOZED;
+
+    const column = this.kanbanColumnRepo.create({
+      userId,
+      ...dto,
+      isSystem, // Override with auto-calculated value
+    });
+    return this.kanbanColumnRepo.save(column);
+  }
+
+  /**
+   * Update an existing kanban column
+   */
+  async updateColumn(userId: string, columnId: string, dto: UpdateColumnDto): Promise<KanbanColumn> {
+    const column = await this.kanbanColumnRepo.findOne({
+      where: { id: columnId, userId },
+    });
+
+    if (!column) {
+      throw new NotFoundException('Column not found');
+    }
+
+    Object.assign(column, dto);
+    return this.kanbanColumnRepo.save(column);
+  }
+
+  /**
+   * Delete a kanban column
+   */
+  async deleteColumn(userId: string, columnId: string): Promise<void> {
+    const column = await this.kanbanColumnRepo.findOne({
+      where: { id: columnId, userId },
+    });
+
+    if (!column) {
+      throw new NotFoundException('Column not found');
+    }
+
+    if (column.isSystem) {
+      throw new BadRequestException('Cannot delete system column');
+    }
+
+    // Move emails in this column to Inbox
+    await this.emailMetadataRepo.update(
+      { userId, columnId },
+      { columnId: null, status: KanbanEmailStatus.INBOX }
+    );
+
+    await this.kanbanColumnRepo.remove(column);
+  }
+
+  /**
+   * Initialize default columns for new user
+   */
+  async initializeDefaultColumns(userId: string): Promise<KanbanColumn[]> {
+    const existing = await this.kanbanColumnRepo.find({ where: { userId } });
+    if (existing.length > 0) {
+      return existing;
+    }
+
+    const defaults = [
+      { title: 'Inbox', status: KanbanEmailStatus.INBOX, color: '#3B82F6', icon: 'inbox', order: 0, isSystem: false },
+      { title: 'To Do', status: KanbanEmailStatus.TODO, color: '#F59E0B', icon: 'clipboard-list', order: 1, isSystem: false },
+      { title: 'In Progress', status: KanbanEmailStatus.IN_PROGRESS, color: '#10B981', icon: 'clock', order: 2, isSystem: false },
+      { title: 'Done', status: KanbanEmailStatus.DONE, color: '#8B5CF6', icon: 'check-circle', order: 3, isSystem: false },
+      { title: 'Snoozed', status: KanbanEmailStatus.SNOOZED, color: '#6B7280', icon: 'moon', order: 4, isSystem: true },
+    ];
+
+    const columns = defaults.map(config =>
+      this.kanbanColumnRepo.create({ userId, ...config, gmailLabelId: null, gmailLabelName: null })
+    );
+
+    return this.kanbanColumnRepo.save(columns);
   }
 }
 

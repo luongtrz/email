@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from './user.entity';
+import { KanbanColumn } from './kanban-column.entity';
 
 export enum KanbanEmailStatus {
     INBOX = 'INBOX',
@@ -39,6 +40,13 @@ export class EmailMetadata {
     default: KanbanEmailStatus.INBOX,
   })
   status: KanbanEmailStatus;
+
+  @Column({ name: 'column_id', type: 'uuid', nullable: true })
+  columnId?: string | null;
+
+  @ManyToOne(() => KanbanColumn, { nullable: true })
+  @JoinColumn({ name: 'column_id' })
+  column?: KanbanColumn | null;
 
   @Column({ name: 'previous_status', type: 'varchar', nullable: true })
   previousStatus?: KanbanEmailStatus | null;

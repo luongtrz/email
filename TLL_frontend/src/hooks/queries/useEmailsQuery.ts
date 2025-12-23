@@ -16,6 +16,8 @@ export const emailKeys = {
     [...emailKeys.lists(), { folder, search }] as const,
   searches: () => [...emailKeys.all, "search"] as const,
   search: (query: string) => [...emailKeys.searches(), query] as const,
+  semanticSearches: () => [...emailKeys.all, "semantic-search"] as const,
+  semanticSearch: (query: string) => [...emailKeys.semanticSearches(), query] as const,
   details: () => [...emailKeys.all, "detail"] as const,
   detail: (id: string) => [...emailKeys.details(), id] as const,
   mailboxes: () => ["mailboxes"] as const,
@@ -34,6 +36,7 @@ export const useEmailsQuery = (folder: string, limit = 20) => {
         // NO SEARCH PARAMETER
         page: 1,
         limit,
+        autoSync: true, // Auto-sync emails with embeddings in background
       });
       return result;
     },
@@ -57,6 +60,7 @@ export const useInfiniteEmailsQuery = (
         // NO SEARCH PARAMETER - folder browsing only
         page: pageParam,
         limit,
+        autoSync: true, // Auto-sync emails with embeddings in background
       });
       return result;
     },
@@ -84,6 +88,39 @@ export const useSearchEmailsQuery = (query: string, limit = 20) => {
     },
     getNextPageParam: (lastPage) => {
       const { page, totalPages } = lastPage.pagination as { page: number; totalPages: number };
+      return page < totalPages ? page + 1 : undefined;
+    },
+    initialPageParam: 1,
+    enabled: !!query && query.length >= 3, // Only search if query has at least 3 characters
+    staleTime: 30000, // Cache search results for 30 seconds
+  });
+};
+
+/**
+ * Semantic search with vector embeddings
+ * Uses hybrid search (semantic similarity + keyword matching)
+ */
+export const useSemanticSearchQuery = (
+  query: string,
+  limit = 20,
+  minSimilarity = 0.5
+) => {
+  return useInfiniteQuery({
+    queryKey: emailKeys.semanticSearch(query),
+    queryFn: async ({ pageParam: _pageParam = 1 }) => {
+      const result = await emailService.semanticSearch(query, {
+        limit,
+        minSimilarity,
+      });
+      return result;
+    },
+    getNextPageParam: (lastPage) => {
+      // Semantic search currently doesn't support pagination
+      // Returns single page with all results
+      const { page, totalPages } = lastPage.pagination as {
+        page: number;
+        totalPages: number;
+      };
       return page < totalPages ? page + 1 : undefined;
     },
     initialPageParam: 1,

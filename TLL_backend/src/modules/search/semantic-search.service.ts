@@ -34,7 +34,7 @@ export class SemanticSearchService {
     options: { limit?: number; minSimilarity?: number } = {},
   ): Promise<SemanticSearchResult[]> {
     const limit = options.limit || 20;
-    const minSimilarity = options.minSimilarity || 0.5;
+    const minSimilarity = options.minSimilarity ?? 0.3; // Default 0.3 for better recall
 
     // 1. Semantic search using vector similarity
     const semanticResults = await this.semanticSearch(
@@ -73,33 +73,35 @@ export class SemanticSearchService {
     userId: string,
     query: string,
     limit: number = 20,
-    minSimilarity: number = 0.5,
+    minSimilarity: number = 0.3,
   ): Promise<SemanticSearchResult[]> {
     // Generate query embedding
     const queryEmbedding = await this.embeddingService.generateEmbedding(query);
     const queryVector = this.embeddingService.vectorToString(queryEmbedding);
 
-    // Vector similarity search using pgvector
-    const results = await this.emailContentRepository
-      .createQueryBuilder('email')
-      .select([
-        'email.emailId',
-        'email.subject',
-        'email.bodyPreview',
-        'email.from',
-        'email.to',
-        'email.date',
-      ])
-      .addSelect(`1 - (email.embedding <=> '${queryVector}')`, 'similarity')
-      .where('email.userId = :userId', { userId })
-      .andWhere('email.embedding IS NOT NULL')
-      .orderBy('similarity', 'DESC')
-      .limit(limit)
-      .getRawMany();
+    // Vector similarity search using pgvector - use raw query to avoid TypeORM parameter binding issues
+    const results = await this.emailContentRepository.query(
+      `
+      SELECT
+        email_id as "email_emailId",
+        subject as "email_subject",
+        body_preview as "email_bodyPreview",
+        "from" as "email_from",
+        "to" as "email_to",
+        date as "email_date",
+        1 - (embedding <=> $1::vector) as similarity
+      FROM email_contents
+      WHERE user_id = $2
+        AND embedding IS NOT NULL
+      ORDER BY similarity DESC
+      LIMIT $3
+      `,
+      [queryVector, userId, limit],
+    );
 
-    return results
-      .filter((r) => r.similarity >= minSimilarity)
-      .map((r) => ({
+    const filtered = results.filter((r) => r.similarity >= minSimilarity);
+
+    return filtered.map((r) => ({
         emailId: r.email_emailId,
         subject: r.email_subject,
         bodyPreview: r.email_bodyPreview,
