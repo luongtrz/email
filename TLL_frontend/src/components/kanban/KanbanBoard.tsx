@@ -178,7 +178,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   // Filter columns based on showSnoozed toggle
   const visibleColumns = columns.filter(
-    (col) => col.id !== "snoozed" || showSnoozed
+    (col) => col.status !== 'SNOOZED' || showSnoozed
   );
 
   return (
@@ -262,11 +262,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               <>
                 <Eye className="w-4 h-4" />
                 <span className="text-sm font-medium">Show Snoozed</span>
-                {cardsByColumn["snoozed"]?.length > 0 && (
-                  <span className="px-2 py-0.5 bg-purple-500 text-white text-xs rounded-full">
-                    {cardsByColumn["snoozed"].length}
-                  </span>
-                )}
+                {(() => {
+                  const snoozedColumn = columns.find(col => col.status === 'SNOOZED');
+                  return snoozedColumn && cardsByColumn[snoozedColumn.id]?.length > 0 && (
+                    <span className="px-2 py-0.5 bg-purple-500 text-white text-xs rounded-full">
+                      {cardsByColumn[snoozedColumn.id].length}
+                    </span>
+                  );
+                })()}
               </>
             )}
           </button>

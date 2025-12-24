@@ -52,7 +52,7 @@ export function ColumnEditorModal({
 
   // Form state
   const [title, setTitle] = useState("");
-  const [status, setStatus] = useState<typeof KanbanEmailStatus[keyof typeof KanbanEmailStatus]>(KanbanEmailStatus.TODO);
+  const [status, setStatus] = useState<string>("TODO");
   const [gmailLabelId, setGmailLabelId] = useState<string | null>(null);
   const [gmailLabelName, setGmailLabelName] = useState<string | null>(null);
   const [color, setColor] = useState(DEFAULT_COLORS[0]);
@@ -71,7 +71,7 @@ export function ColumnEditorModal({
     } else {
       // Reset for create mode
       setTitle("");
-      setStatus(KanbanEmailStatus.TODO);
+      setStatus("TODO");
       setGmailLabelId(null);
       setGmailLabelName(null);
       setColor(DEFAULT_COLORS[0]);
@@ -84,22 +84,37 @@ export function ColumnEditorModal({
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
+    // Title validation
     if (!title.trim()) {
       newErrors.title = "Title is required";
     } else if (title.length > 50) {
       newErrors.title = "Title must be 50 characters or less";
     }
 
-    // Check for duplicate status (warning only)
-    const duplicateStatus = existingColumns.find(
-      (col) => col.status === status && col.id !== column?.id
-    );
-    if (duplicateStatus) {
-      newErrors.status = `Warning: Column "${duplicateStatus.title}" already uses this status`;
+    // Status validation
+    const trimmedStatus = status.trim();
+
+    if (!trimmedStatus) {
+      newErrors.status = "Status is required";
+    } else if (trimmedStatus.length > 50) {
+      newErrors.status = "Status must be 50 characters or less";
+    } else {
+      // Check for duplicate status (case-insensitive) - BLOCKING
+      const duplicateStatus = existingColumns.find(
+        (col) => col.status.toUpperCase() === trimmedStatus.toUpperCase() && col.id !== column?.id
+      );
+      if (duplicateStatus) {
+        newErrors.status = `Column "${duplicateStatus.title}" already uses status "${duplicateStatus.status}"`;
+      }
+
+      // Prevent using SNOOZED for non-system columns
+      if (trimmedStatus.toUpperCase() === 'SNOOZED' && !isSystemColumn) {
+        newErrors.status = 'SNOOZED is reserved for the system Snoozed column';
+      }
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0 || (Object.keys(newErrors).length === 1 && !!newErrors.status);
+    return Object.keys(newErrors).length === 0; // BLOCK if any errors
   };
 
   const handleSave = () => {
@@ -109,7 +124,7 @@ export function ColumnEditorModal({
 
     const columnData: Partial<KanbanColumnConfig> = {
       title: title.trim(),
-      status,
+      status: status.trim(),
       gmailLabelId,
       gmailLabelName,
       color,
@@ -174,31 +189,28 @@ export function ColumnEditorModal({
             <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
               Status <span className="text-red-500">*</span>
             </label>
-            <select
+            <input
               id="status"
+              type="text"
               value={status}
-              onChange={(e) => setStatus(e.target.value as typeof status)}
+              onChange={(e) => setStatus(e.target.value.toUpperCase())}
               disabled={isSystemColumn}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                isSystemColumn ? 'bg-gray-50 cursor-not-allowed' : ''
-              }`}
-            >
-              <option value={KanbanEmailStatus.INBOX}>INBOX</option>
-              <option value={KanbanEmailStatus.TODO}>TODO</option>
-              <option value={KanbanEmailStatus.IN_PROGRESS}>IN_PROGRESS</option>
-              <option value={KanbanEmailStatus.DONE}>DONE</option>
-              {isSystemColumn && (
-                <option value={KanbanEmailStatus.SNOOZED}>SNOOZED</option>
-              )}
-            </select>
+              placeholder="e.g., URGENT, WAITING_FOR_REPLY"
+              maxLength={50}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.status ? 'border-red-300' : 'border-gray-300'
+              } ${isSystemColumn ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+            />
             {errors.status && (
-              <div className="mt-1 flex items-start gap-1 text-xs text-amber-600">
-                <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                <span>{errors.status}</span>
-              </div>
+              <p className="mt-1 text-xs text-red-600">{errors.status}</p>
             )}
             {isSystemColumn && (
               <p className="mt-1 text-xs text-gray-500">System column status cannot be changed</p>
+            )}
+            {!isSystemColumn && (
+              <p className="mt-1 text-xs text-gray-500">
+                Use uppercase snake_case (e.g., WAITING_FOR_REPLY)
+              </p>
             )}
           </div>
 

@@ -56,13 +56,14 @@ function SortableColumnCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes}>
       <ColumnCard
         column={column}
         onEdit={onEdit}
         onDelete={onDelete}
         isDragging={isDragging}
         labelDeleted={labelDeleted}
+        dragListeners={listeners}
       />
     </div>
   );
