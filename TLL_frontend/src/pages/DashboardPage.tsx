@@ -55,7 +55,7 @@ import {
 import {
   useRestoreSnoozedMutation,
   useSnoozeEmailMutation,
-  // useKanbanEmailsQuery,
+
   useAllKanbanColumnsQuery,
   useUpdateStatusMutation
 } from "../hooks/queries/useKanbanQuery";
@@ -483,7 +483,6 @@ export const DashboardPage: React.FC = () => {
       // Find source column to get previous Gmail label
       const email = processedEmails.find(e => e.id === emailId);
       if (!email) {
-        console.warn('[handleEmailMove] Email not found:', emailId);
         return;
       }
 
@@ -501,7 +500,8 @@ export const DashboardPage: React.FC = () => {
           emailId,
           status: targetColumn.status, // Send status from localStorage
           gmailLabelId: targetGmailLabelId,
-          previousGmailLabelId
+          previousGmailLabelId,
+          targetColumnId: targetColumn.id // Pass column ID for optimistic update
         });
       }
       // In List view: move to Gmail folder

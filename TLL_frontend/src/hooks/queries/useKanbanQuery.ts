@@ -23,7 +23,7 @@ const folderToStatus = (folder: string): KanbanEmailStatusType => {
     done: KanbanEmailStatus.DONE,
     snoozed: KanbanEmailStatus.SNOOZED,
   };
-  
+
   return folderMap[folder.toLowerCase()] || KanbanEmailStatus.INBOX;
 };
 
@@ -80,19 +80,19 @@ export const useAllKanbanColumnsQuery = (
   // Use useQueries to avoid hook order violations
   const queries = useQueries({
     queries: safeColumns.map((column) => ({
-      queryKey: [...kanbanKeys.all, "column", column.id, pages[column.id]],
+      queryKey: [...kanbanKeys.all, "column", column.id, pages[column.id] || 1],
       queryFn: async () => {
-        const currentPage = pages[column.id];
+        const currentPage = pages[column.id] || 1;
 
         // Get existing data from previous page (page - 1)
         const previousPageData = currentPage > 1
           ? queryClient.getQueryData<{
-              columnId: string;
-              emails: any[];
-              total: number;
-              currentPage: number;
-              hasMore: boolean;
-            }>([...kanbanKeys.all, "column", column.id, currentPage - 1])
+            columnId: string;
+            emails: any[];
+            total: number;
+            currentPage: number;
+            hasMore: boolean;
+          }>([...kanbanKeys.all, "column", column.id, currentPage - 1])
           : null;
 
         // If loading page > 1, fetch only the new page and append
@@ -154,7 +154,7 @@ export const useAllKanbanColumnsQuery = (
         const columnData = queries.find(q => q.data?.columnId === column.id)?.data;
         // Only increment if has more data
         if (columnData?.hasMore) {
-          newPages[column.id] = prev[column.id] + 1;
+          newPages[column.id] = (prev[column.id] || 1) + 1;
         }
       });
       return newPages;
@@ -236,24 +236,160 @@ export const useUpdateStatusMutation = () => {
       emailId,
       status,
       gmailLabelId,
-      previousGmailLabelId
+      previousGmailLabelId,
     }: {
       emailId: string;
       status: string;
       gmailLabelId?: string | null;
       previousGmailLabelId?: string | null;
+      targetColumnId?: string;
     }) =>
       kanbanService.updateStatus(emailId, status, gmailLabelId, previousGmailLabelId),
 
-    onSuccess: () => {
-      // Invalidate all kanban queries to refetch updated data
-      queryClient.invalidateQueries({ queryKey: kanbanKeys.all });
+    // Optimistic Update
+    onMutate: async ({ emailId, status, targetColumnId }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: kanbanKeys.all });
+
+      // Snapshot previous state
+      const previousData: Map<string, any> = new Map();
+
+      // Get all column queries
+      const queryFilter = { queryKey: [...kanbanKeys.all, "column"] };
+      const allColumnQueries = queryClient.getQueriesData(queryFilter);
+
+      // Save previous data for rollback
+      allColumnQueries.forEach(([queryKey, data]) => {
+        previousData.set(JSON.stringify(queryKey), data);
+      });
+
+      // Find the email to move
+      let emailToMove: any = null;
+      let sourceColumnId: string | null = null;
+
+
+      // 1. Remove from source column
+      allColumnQueries.forEach(([queryKey, data]) => {
+        // queryKey is ['kanban', 'column', columnId, page]
+        // We need to check if this query has the email
+
+        if (!data) return;
+
+        const oldData = data as { emails: any[], total: number, columnId: string };
+        const emails = oldData.emails || [];
+        const index = emails.findIndex((e: any) => e.id === emailId);
+
+        if (index !== -1) {
+          // Found it! Clone it
+          emailToMove = { ...emails[index] };
+
+          // Get source column ID from the query key
+          // Query key format: [...kanbanKeys.all, 'column', columnId, page]
+          const keyParts = queryKey as any[];
+          // index 2 is columnId
+          if (keyParts.length >= 3) {
+            sourceColumnId = keyParts[2];
+          }
+
+          // Remove it from this list
+          queryClient.setQueryData(queryKey, {
+            ...oldData,
+            emails: emails.filter((e: any) => e.id !== emailId),
+            total: Math.max(0, (oldData.total || 0) - 1),
+          });
+        }
+      });
+
+      // 2. Add to target column (if we found the email and have a target ID)
+      if (emailToMove && targetColumnId) {
+        // Update email status
+        emailToMove.status = status;
+
+        // Find target column query (look for the highest page number or just any active page)
+        // Since we accumulate data, we want to update the entry that the UI is currently using.
+        // We can search allColumnQueries for the one matching targetColumnId.
+        const targetQueryKeys = allColumnQueries.filter(([key]) => {
+          const k = key as any[];
+          return k[2] === targetColumnId;
+        });
+
+        // Sort by page number descending (k[3]) to get the latest page data
+        targetQueryKeys.sort((a, b) => {
+          const pageA = (a[0] as any[])[3] as number;
+          const pageB = (b[0] as any[])[3] as number;
+          return pageB - pageA;
+        });
+
+        const targetQueryKey = targetQueryKeys[0];
+
+        if (targetQueryKey) {
+          queryClient.setQueryData(targetQueryKey[0], (old: any) => {
+            // Handl case where target column data isn't loaded yet
+            if (!old) {
+              return {
+                columnId: targetColumnId,
+                emails: [emailToMove],
+                total: 1,
+                currentPage: 1,
+                hasMore: false,
+              };
+            }
+            return {
+              ...old,
+              emails: [emailToMove, ...old.emails],
+              total: (old.total || 0) + 1,
+            };
+          });
+        } else {
+          // If the query key wasn't found in existing data (e.g. column is new/loading and has no data yet),
+          // we must manually construct the key and seed the cache.
+          // Key format: [...kanbanKeys.all, "column", columnId, page] -> ['kanban', 'column', targetColumnId, 1]
+          const targetKey = [...kanbanKeys.all, "column", targetColumnId, 1];
+
+          queryClient.setQueryData(targetKey, {
+            columnId: targetColumnId,
+            emails: [emailToMove],
+            total: 1,
+            currentPage: 1,
+            hasMore: false,
+          });
+        }
+      }
+
+      return { previousData, sourceColumnId };
+    },
+
+    onSuccess: (_data, variables, context) => {
+      // Invalidate queries to ensure consistency, especially for cases where optimistic update might differ or missed
+      // Optimize: Only invalidate source and target columns instead of ALL columns
+
+      const { sourceColumnId } = context || {};
+      const { targetColumnId } = variables;
+
+      if (sourceColumnId) {
+        queryClient.invalidateQueries({ queryKey: [...kanbanKeys.all, "column", sourceColumnId] });
+      }
+
+      if (targetColumnId && targetColumnId !== sourceColumnId) {
+        queryClient.invalidateQueries({ queryKey: [...kanbanKeys.all, "column", targetColumnId] });
+      }
+
+      // Also invalidate snoozed if moving out of snoozed? 
+      // Actually sourceColumnId would capture 'snoozed' if moving out of it.
+
       toast.success("Email moved successfully!");
     },
 
-    onError: (error: any) => {
+    onError: (error: any, _variables, context) => {
       const message = error?.response?.data?.message || "Failed to move email";
       toast.error(message);
+
+      // Rollback
+      if (context?.previousData) {
+        context.previousData.forEach((data, keyString) => {
+          queryClient.setQueryData(JSON.parse(keyString), data);
+        });
+      }
     },
   });
 };
@@ -289,99 +425,152 @@ export const useSnoozeEmailMutation = () => {
   return useMutation({
     mutationFn: ({ emailId, until }: { emailId: string; until: Date }) =>
       kanbanService.snoozeEmail(emailId, until),
-    
+
     // Optimistic update - move email to SNOOZED column immediately
     onMutate: async ({ emailId, until }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: kanbanKeys.all });
 
-      // Snapshot previous state for rollback (ALL pages)
-      const previousData: Map<string, any[]> = new Map();
-      const statuses: KanbanEmailStatusType[] = [
-        KanbanEmailStatus.INBOX,
-        KanbanEmailStatus.TODO,
-        KanbanEmailStatus.IN_PROGRESS,
-        KanbanEmailStatus.DONE,
-        KanbanEmailStatus.SNOOZED,
-      ];
+      // Snapshot previous state for rollback
+      const previousData: Map<string, any> = new Map();
+      const allColumnQueries = queryClient.getQueriesData({ queryKey: [...kanbanKeys.all, "column"] });
 
-      // Find which column the email is currently in
-      let emailToMove: any = null;
-      let currentStatus: KanbanEmailStatusType | null = null;
-
-      statuses.forEach((status) => {
-        const queryFilter = { queryKey: [...kanbanKeys.all, "column", status] };
-        const allPages = queryClient.getQueriesData(queryFilter);
-        previousData.set(status, allPages);
-        
-        // Search for email in all pages
-        allPages.forEach(([_, data]) => {
-          const emails = (data as any)?.emails || [];
-          const found = emails.find((e: any) => e.id === emailId);
-          if (found && !emailToMove) {
-            emailToMove = { ...found };
-            currentStatus = status;
-          }
-        });
+      allColumnQueries.forEach(([queryKey, data]) => {
+        previousData.set(JSON.stringify(queryKey), data);
       });
 
-      // If email found, perform optimistic update
-      if (emailToMove && currentStatus) {
-        // Update email with snooze data
+      // Find email to move
+      let emailToMove: any = null;
+      let sourceColumnId: string | null = null;
+
+      // 1. Remove from source
+      allColumnQueries.forEach(([queryKey, data]) => {
+        if (!data) return;
+        const oldData = data as any;
+        const emails = oldData.emails || [];
+        const index = emails.findIndex((e: any) => e.id === emailId);
+
+        if (index !== -1) {
+          emailToMove = { ...emails[index] };
+
+          const keyParts = queryKey as any[];
+          if (keyParts.length >= 3) {
+            sourceColumnId = keyParts[2];
+          }
+
+          queryClient.setQueryData(queryKey, {
+            ...oldData,
+            emails: emails.filter((e: any) => e.id !== emailId),
+            total: Math.max(0, (oldData.total || 0) - 1),
+          });
+        }
+      });
+
+      // 2. Add to SNOOZED column
+      // We need to find the "Snoozed" column ID. 
+      // We'll search for a query with columnId 'snoozed' (default) OR status 'SNOOZED'
+      if (emailToMove) {
         emailToMove.status = KanbanEmailStatus.SNOOZED;
         emailToMove.snoozeUntil = until.toISOString();
 
-        statuses.forEach((status) => {
-          const queryFilter = { queryKey: [...kanbanKeys.all, "column", status] };
-          
-          queryClient.setQueriesData(queryFilter, (old: any) => {
-            if (!old) return old;
-            const emails = old.emails || [];
-            const emailIndex = emails.findIndex((e: any) => e.id === emailId);
+        // Try to find the snoozed column query
+        // Look for any query where the 3rd element (columnId) might be 'snoozed' or mapped to it
+        // Since we don't have the column config here easily, we scan for a likely candidate
+        // or just iterate and find one that looks like it.
+        // Actually, best bet is to check the `columnId` part of the key.
+        // By default it is "snoozed".
 
-            // Remove from current column
-            if (emailIndex !== -1 && status === currentStatus) {
+        // Find query key for column 'snoozed', find highest page
+        const snoozedQueryKeys = allColumnQueries.filter(([key]) => {
+          const k = key as any[];
+          return k[2] === 'snoozed';
+        });
+
+        snoozedQueryKeys.sort((a, b) => {
+          const pageA = (a[0] as any[])[3] as number;
+          const pageB = (b[0] as any[])[3] as number;
+          return pageB - pageA;
+        });
+
+        const snoozedQueryEntry = snoozedQueryKeys[0];
+
+        // Loop through all queries to find one that corresponds to SNOOZED status if ID is custom?
+        // But for now let's assume 'snoozed' ID as per default.
+        if (snoozedQueryEntry) {
+          queryClient.setQueryData(snoozedQueryEntry[0], (old: any) => {
+            // Handle case where snoozed column data isn't loaded yet
+            if (!old) {
+              // We need the columnId from the key since we don't have it easily otherwise, 
+              // but we know it's likely 'snoozed' based on the search earlier
+              const colId = (snoozedQueryEntry[0] as any[])[2];
               return {
-                ...old,
-                emails: emails.filter((e: any) => e.id !== emailId),
-                total: Math.max(0, (old.total || 0) - 1),
+                columnId: colId,
+                emails: [emailToMove],
+                total: 1,
+                currentPage: 1,
+                hasMore: false,
               };
             }
+            return {
+              ...old,
+              emails: [emailToMove, ...old.emails],
+              total: (old.total || 0) + 1,
+            };
+          });
+        } else {
+          // Fallback for Snoozed column if not found in active queries
+          // Try default "snoozed" ID
+          const snoozedId = "snoozed";
+          const targetKey = [...kanbanKeys.all, "column", snoozedId, 1];
 
-            // Add to SNOOZED column (only first page)
-            if (status === KanbanEmailStatus.SNOOZED && status !== currentStatus && old.currentPage === 1) {
+          queryClient.setQueryData(targetKey, (old: any) => {
+            // If data exists (maybe we missed it in search?), append.
+            if (old) {
               return {
                 ...old,
-                emails: [emailToMove, ...emails],
+                emails: [emailToMove, ...old.emails],
                 total: (old.total || 0) + 1,
               };
             }
 
-            return old;
+            // Seed new data
+            return {
+              columnId: snoozedId,
+              emails: [emailToMove],
+              total: 1,
+              currentPage: 1,
+              hasMore: false,
+            };
           });
-        });
+        }
       }
 
-      return { previousData };
+      return { previousData, sourceColumnId };
     },
 
     // Success - no refetch needed, optimistic update already applied
-    onSuccess: () => {
+    onSuccess: (_data, _variables, context) => {
+      const { sourceColumnId } = context || {};
+
+      if (sourceColumnId) {
+        queryClient.invalidateQueries({ queryKey: [...kanbanKeys.all, "column", sourceColumnId] });
+      }
+
+      // Always invalidate snoozed column
+      queryClient.invalidateQueries({ queryKey: [...kanbanKeys.all, "column", "snoozed"] });
+
       toast.success("Email snoozed successfully!");
     },
 
     // Rollback on error
-    onError: (error: any, variables, context) => {
+    onError: (error: any, _variables, context) => {
       const message = error?.response?.data?.message || "Failed to snooze email";
       toast.error(message);
-      console.error("Snooze error:", variables);
 
       // Restore all previous states
       if (context?.previousData) {
-        context.previousData.forEach((pages) => {
-          pages.forEach(([queryKey, data]) => {
-            queryClient.setQueryData(queryKey, data);
-          });
+        context.previousData.forEach((data, keyString) => {
+          queryClient.setQueryData(JSON.parse(keyString), data);
         });
       }
     },
