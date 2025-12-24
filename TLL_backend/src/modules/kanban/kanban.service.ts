@@ -29,7 +29,7 @@ export class KanbanEmailsService {
     @InjectRepository(EmailMetadata)
     private emailMetadataRepo: Repository<EmailMetadata>,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   private async getMetadataMap(userId: string, emailIds: string[]) {
     if (!emailIds.length) {
@@ -51,7 +51,7 @@ export class KanbanEmailsService {
       const meta = metadataMap.get(email.id);
       return {
         ...email,
-        status: meta?.status || KanbanEmailStatus.INBOX,
+        status: (meta?.status || KanbanEmailStatus.INBOX) as KanbanEmailStatus,
         aiSummary: meta?.aiSummary || null,
         snoozeUntil: meta?.snoozeUntil || null,
       };
@@ -205,7 +205,7 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
           (h: any) => h.name.toLowerCase() === 'from',
         );
         if (!fromHeader) return false;
-        
+
         const fromValue = fromHeader.value.toLowerCase();
         return fromValue.includes(fromLower);
       });
@@ -491,7 +491,7 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
 
     return {
       ...email,
-      status: metadata?.status || KanbanEmailStatus.INBOX,
+      status: (metadata?.status || KanbanEmailStatus.INBOX) as KanbanEmailStatus,
       aiSummary: metadata?.aiSummary || null,
       snoozeUntil: metadata?.snoozeUntil || null,
     };
@@ -550,7 +550,7 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
 
     return {
       emailId,
-      status: saved.status,
+      status: saved.status as KanbanEmailStatus,
       aiSummary: saved.aiSummary || null,
       snoozeUntil: saved.snoozeUntil || null,
     };
@@ -580,9 +580,9 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
 
     return {
       emailId,
-      status: saved.status,
+      status: saved.status as KanbanEmailStatus,
       snoozeUntil: saved.snoozeUntil || null,
-      previousStatus: saved.previousStatus || null,
+      previousStatus: (saved.previousStatus || null) as KanbanEmailStatus | null,
     };
   }
 
