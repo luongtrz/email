@@ -5,11 +5,10 @@ import { EmailsModule } from '../emails/emails.module';
 import { KanbanEmailsController } from './kanban.controller';
 import { KanbanEmailsService } from './kanban.service';
 import { EmailMetadata } from '@/database/entities/email-metadata.entity';
-import { KanbanColumn } from '@/database/entities/kanban-column.entity';
 import { User } from '@/database/entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, EmailMetadata, KanbanColumn]), AuthModule, EmailsModule],
+  imports: [TypeOrmModule.forFeature([User, EmailMetadata]), AuthModule, EmailsModule],
   controllers: [KanbanEmailsController],
   providers: [KanbanEmailsService],
 })

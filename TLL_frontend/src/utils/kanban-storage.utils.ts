@@ -119,7 +119,7 @@ function validateConfig(config: any): config is KanbanConfig {
 
   // Ensure Snoozed column exists and is marked as system
   const snoozedColumn = config.columns.find(
-    (col: any) => col.status === KanbanEmailStatus.SNOOZED
+    (col: any) => col.status === 'SNOOZED'
   );
   if (!snoozedColumn) {
     console.error('Invalid config: missing Snoozed column');
@@ -128,6 +128,17 @@ function validateConfig(config: any): config is KanbanConfig {
   if (!snoozedColumn.isSystem) {
     console.error('Invalid config: Snoozed column must be system');
     return false;
+  }
+
+  // Check for duplicate status names (case-insensitive)
+  const statusMap = new Map<string, string>();
+  for (const column of config.columns) {
+    const normalizedStatus = column.status.toUpperCase();
+    if (statusMap.has(normalizedStatus)) {
+      console.error(`Duplicate status "${column.status}" found in columns`);
+      return false;
+    }
+    statusMap.set(normalizedStatus, column.id);
   }
 
   return true;
@@ -160,8 +171,14 @@ function validateColumn(column: any): boolean {
     return false;
   }
 
-  if (!VALID_STATUSES.includes(column.status)) {
-    console.error(`Invalid column: status must be one of ${VALID_STATUSES.join(', ')}`);
+  if (typeof column.status !== 'string' || column.status.trim().length === 0) {
+    console.error('Invalid column: status must be a non-empty string');
+    return false;
+  }
+
+  // Validate SNOOZED is system
+  if (column.status === 'SNOOZED' && !column.isSystem) {
+    console.error('Invalid column: SNOOZED must be system column');
     return false;
   }
 

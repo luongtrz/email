@@ -1,10 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsString, Length } from 'class-validator';
 
 export class UpdateStatusDto {
-  @ApiProperty({ description: 'Column ID to move email to' })
-  @IsUUID()
-  columnId: string;
+  @ApiProperty({ description: 'Status from localStorage column (e.g., INBOX, TODO, custom status)' })
+  @IsString()
+  @Length(1, 50)
+  status: string;
 
   @ApiPropertyOptional({
     description: 'Gmail label ID to apply when moving to this column',
