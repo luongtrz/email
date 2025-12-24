@@ -11,9 +11,11 @@ export const useKeyboardShortcuts = (shortcuts: KeyboardShortcuts) => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Don't trigger shortcuts if user is typing in input/textarea
+      // EXCEPT for Escape key which should always work
       if (
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement
+        (event.target instanceof HTMLInputElement ||
+          event.target instanceof HTMLTextAreaElement) &&
+        event.key !== "Escape"
       ) {
         return;
       }

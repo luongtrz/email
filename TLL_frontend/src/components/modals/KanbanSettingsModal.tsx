@@ -177,7 +177,6 @@ export function KanbanSettingsModal({ isOpen, onClose }: KanbanSettingsModalProp
           gmailLabelName: columnData.gmailLabelName || null,
           color: columnData.color!,
           icon: columnData.icon!,
-          isSystem: false,
           order: columnData.order || columns.length,
         });
         toast.success('Column added successfully');

@@ -37,6 +37,7 @@ import { useAuthStore } from "../store/auth.store";
 import { useDashboardStore } from "../store/dashboard.store";
 import { useKanbanConfigStore, initializeKanbanConfig } from "../store/kanbanConfig.store";
 import type { Email } from "../types/email.types";
+import type { KanbanEmailStatusType } from "../types/kanban.types";
 import { DEFAULT_COLUMNS } from "../utils/kanban-storage.utils";
 import { filterEmails, sortEmails } from "../utils/email.utils";
 
@@ -51,8 +52,8 @@ import {
   useStarEmailMutation,
 } from "../hooks/queries/useEmailsQuery";
 
-import { 
-  useRestoreSnoozedMutation, 
+import {
+  useRestoreSnoozedMutation,
   useSnoozeEmailMutation,
   // useKanbanEmailsQuery,
   useAllKanbanColumnsQuery,
@@ -63,9 +64,11 @@ import {
 import { useDebounce } from "../hooks/useDebounce";
 import { useEmailNavigation } from "../hooks/useEmailNavigation";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useOutsideClick } from "../hooks/useOutsideClick";
 import { useResizable } from "../hooks/useResizable";
 import { useSuggestions } from "../hooks/useSuggestions";
+import { useSearchHistory } from "../hooks/useSearchHistory";
 
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -73,7 +76,7 @@ export const DashboardPage: React.FC = () => {
   const { columns: configColumns, isInitialized } = useKanbanConfigStore();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Debounce search query to avoid excessive API calls
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
@@ -110,7 +113,7 @@ export const DashboardPage: React.FC = () => {
   }, [isInitialized, configColumns]);
 
   const kanbanData = useAllKanbanColumnsQuery(columnConfigs, 20); // Fetch all columns for Kanban view (20 emails per column per page)
-  
+
   // Search query hook (only active when search mode is enabled)
   // Uses semantic search with vector embeddings for conceptual relevance
   const searchResults = useSemanticSearchQuery(
@@ -118,14 +121,14 @@ export const DashboardPage: React.FC = () => {
     20,      // limit
     0.3      // minSimilarity threshold (lowered from 0.5 for better recall)
   );
-  
+
   // Folder query hook (DISABLED when in search mode to prevent dual API calls)
   // Pass empty string as folder when searching to disable the query
   const folderResults = useInfiniteEmailsQuery(
     isSearchMode ? "" : activeFolder, // Disable folder query during search
     20
   );
-  
+
   // Determine which data source to use
   const {
     data: emailsData,
@@ -135,19 +138,19 @@ export const DashboardPage: React.FC = () => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = viewMode === "kanban" 
-    ? { 
+  } = viewMode === "kanban"
+      ? {
         data: { pages: [{ emails: kanbanData.allEmails, pagination: {} }] },
         isLoading: kanbanData.isLoading,
         error: kanbanData.isError ? new Error('Failed to load Kanban data') : null,
         refetch: kanbanData.refetch,
-        fetchNextPage: async () => {},
+        fetchNextPage: async () => { },
         hasNextPage: false,
         isFetchingNextPage: false,
       }
-    : isSearchMode && debouncedSearchQuery.length >= 3
-    ? searchResults
-    : folderResults;
+      : isSearchMode && debouncedSearchQuery.length >= 3
+        ? searchResults
+        : folderResults;
 
   const {
     data: folders = [],
@@ -163,27 +166,59 @@ export const DashboardPage: React.FC = () => {
   const restoreSnoozedMutation = useRestoreSnoozedMutation();
   const snoozeEmailMutation = useSnoozeEmailMutation();
 
-  // Extract emails from infinite query data
+  // ========== EMAILS FOR SUGGESTIONS (HYBRID ARCHITECTURE) ==========
+  // Cache folder emails BEFORE search mode disables folderResults
+  const cachedFolderEmailsRef = useRef<Email[]>([]);
+
+  // Update cache whenever folderResults has data (NOT in search mode)
+  useEffect(() => {
+    if (!isSearchMode && folderResults.data?.pages) {
+      const extracted = folderResults.data.pages.flatMap((page: any) => page.emails) || [];
+      if (extracted.length > 0) {
+        cachedFolderEmailsRef.current = extracted;
+      }
+    }
+  }, [isSearchMode, folderResults.data]);
+
+  // Extract emails from LIST VIEW for LOCAL suggestions
+  // Use cached emails to ensure suggestions work even when folderResults is disabled during search
+  const folderEmails = useMemo(() => {
+    return cachedFolderEmailsRef.current;
+  }, [cachedFolderEmailsRef.current]);
+
+  // Extract emails from current view (for display, filtering, etc.)
   const emails = useMemo(
     () => emailsData?.pages.flatMap((page) => page.emails) || [],
     [emailsData]
   );
 
-  // Generate search suggestions from current emails
-  const suggestions = useSuggestions(emails, searchQuery, 5);
+  // Search history management
+  const { recentSearches, addSearch, deleteSearch, clearAll } = useSearchHistory();
+
+  // Generate search suggestions from folder emails (LOCAL, instant)
+  const suggestions = useSuggestions(folderEmails, searchQuery);
+
+  // Calculate loading state for search
+  const isSearchLoading = searchResults.isLoading || isFetchingNextPage;
+
+  // Calculate if empty state should show
+  const showEmptyState = !isSearchLoading &&
+    searchQuery.length >= 2 &&
+    suggestions.length === 0 &&
+    recentSearches.length === 0;
 
   // Apply filtering and sorting for Kanban view
   const processedEmails = useMemo(() => {
     if (viewMode !== "kanban") {
       return emails;
     }
-    
+
     // Step 1: Filter emails
     const filtered = filterEmails(emails, filterMode);
-    
+
     // Step 2: Sort filtered emails
     const sorted = sortEmails(filtered, sortBy);
-    
+
     return sorted;
   }, [emails, filterMode, sortBy, viewMode]);
 
@@ -405,12 +440,12 @@ export const DashboardPage: React.FC = () => {
   const handleSnoozeConfirm = useCallback(
     async (until: Date) => {
       if (!emailToSnooze) return;
-      
-      await snoozeEmailMutation.mutateAsync({ 
-        emailId: emailToSnooze, 
-        until 
+
+      await snoozeEmailMutation.mutateAsync({
+        emailId: emailToSnooze,
+        until
       });
-      
+
       setSnoozeModalOpen(false);
       setEmailToSnooze(null);
     },
@@ -459,16 +494,6 @@ export const DashboardPage: React.FC = () => {
 
       const targetGmailLabelId = targetColumn.gmailLabelId ?? null;
       const previousGmailLabelId = sourceColumn?.gmailLabelId ?? null;
-
-      console.log('[handleEmailMove] Moving email:', {
-        emailId,
-        currentStatus,
-        targetStatus: targetColumn.status,
-        sourceColumnId: sourceColumn?.id,
-        targetColumnId: targetColumn.id,
-        previousGmailLabelId,
-        targetGmailLabelId,
-      });
 
       // In Kanban view: update status with optional Gmail label sync
       if (viewMode === "kanban") {
@@ -556,43 +581,26 @@ export const DashboardPage: React.FC = () => {
   });
 
   // ========== KEYBOARD SHORTCUTS ==========
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+K or Cmd+K to toggle view
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        toggleViewMode();
-      }
-      // Ctrl+N or Cmd+N to compose new email
-      if ((e.ctrlKey || e.metaKey) && e.key === "n") {
-        e.preventDefault();
+  useKeyboardShortcuts({
+    toggleView: toggleViewMode,
+    createEmail: () => {
+      setComposeMode({ type: "new" });
+      setShowCompose(true);
+    },
+    searchFocus: () => searchInputRef.current?.focus(),
+    escape: () => {
+      if (showCompose) {
+        setShowCompose(false);
         setComposeMode({ type: "new" });
-        setShowCompose(true);
+      } else if (showMobileDetail) {
+        setShowMobileDetail(false);
+      } else if (deleteModalOpen) {
+        setDeleteModalOpen(false);
+      } else if (isSearchMode) {
+        handleClearSearch();
       }
-      // Ctrl+F or Cmd+F to focus search
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-      // Escape to close modals/details/search
-      if (e.key === "Escape") {
-        if (showCompose) {
-          setShowCompose(false);
-          setComposeMode({ type: "new" });
-        } else if (showMobileDetail) {
-          setShowMobileDetail(false);
-        } else if (deleteModalOpen) {
-          setDeleteModalOpen(false);
-        } else if (isSearchMode) {
-          // Clear search when ESC is pressed and nothing else is open
-          handleClearSearch();
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleViewMode, showCompose, showMobileDetail, deleteModalOpen, isSearchMode, handleClearSearch]);
+    },
+  });
 
   // ========== AUTO-LOGOUT ON AUTH ERROR ==========
   useEffect(() => {
@@ -637,9 +645,8 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div
-      className={`h-screen flex flex-col bg-gray-50 ${
-        isResizing ? "cursor-col-resize select-none" : ""
-      }`}
+      className={`h-screen flex flex-col bg-gray-50 ${isResizing ? "cursor-col-resize select-none" : ""
+        }`}
     >
       {/* Gmail-style Header */}
       <header className="bg-white border-b border-gray-200 flex-shrink-0">
@@ -676,11 +683,18 @@ export const DashboardPage: React.FC = () => {
 
           {/* Search Bar */}
           <SearchBar
+            ref={searchInputRef}
             query={searchQuery}
             onQueryChange={handleSearchInputChange}
             onSearch={handleSearch}
             onClear={handleClearSearch}
             suggestions={suggestions}
+            isLoading={isSearchLoading}
+            recentSearches={recentSearches}
+            onSearchHistoryAdd={addSearch}
+            onDeleteHistory={deleteSearch}
+            onClearAllHistory={clearAll}
+            showEmptyState={showEmptyState}
             className="flex-1 max-w-2xl hidden md:block"
           />
 
@@ -729,9 +743,8 @@ export const DashboardPage: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar - Desktop */}
         <div
-          className={`hidden lg:flex flex-col border-r border-gray-200 bg-white transition-all duration-200 ${
-            showSidebar ? "w-56" : "w-16"
-          }`}
+          className={`hidden lg:flex flex-col border-r border-gray-200 bg-white transition-all duration-200 ${showSidebar ? "w-56" : "w-16"
+            }`}
         >
           <FolderList
             folders={folders}
@@ -773,9 +786,8 @@ export const DashboardPage: React.FC = () => {
           // Traditional List View
           <>
             <div
-              className={`relative flex-shrink-0 flex flex-col bg-white border-r border-gray-200 ${
-                showMobileDetail ? "hidden" : "flex"
-              } lg:flex`}
+              className={`relative flex-shrink-0 flex flex-col bg-white border-r border-gray-200 ${showMobileDetail ? "hidden" : "flex"
+                } lg:flex`}
               style={{ width: `${emailListWidth}px` }}
             >
               {/* Bulk Actions Bar */}
@@ -819,7 +831,7 @@ export const DashboardPage: React.FC = () => {
                       {!isLoadingEmails && (
                         <p className="text-xs text-blue-700 mt-1">
                           {emails.length} {emails.length === 1 ? 'email' : 'emails'} found
-                          {emailsData?.pages?.[0]?.pagination && 
+                          {emailsData?.pages?.[0]?.pagination &&
                             ` (${(emailsData.pages[0].pagination as { total?: number }).total || 0} total)`
                           }
                         </p>
@@ -897,9 +909,8 @@ export const DashboardPage: React.FC = () => {
 
             {/* Email Detail */}
             <div
-              className={`flex-1 bg-white overflow-hidden flex ${
-                !showMobileDetail && "hidden lg:flex"
-              }`}
+              className={`flex-1 bg-white overflow-hidden flex ${!showMobileDetail && "hidden lg:flex"
+                }`}
             >
               {/* Main Email Detail Content */}
               <div className="flex-1 overflow-y-auto">
@@ -909,17 +920,16 @@ export const DashboardPage: React.FC = () => {
                     <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-2 flex justify-end">
                       <button
                         onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)}
-                        className={`p-2 rounded-lg transition-all ${
-                          isAiSidebarOpen
-                            ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
-                            : "hover:bg-gray-100 text-gray-700 hover:text-purple-600"
-                        }`}
+                        className={`p-2 rounded-lg transition-all ${isAiSidebarOpen
+                          ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                          : "hover:bg-gray-100 text-gray-700 hover:text-purple-600"
+                          }`}
                         title="AI Summary (Powered by Gemini)"
                       >
                         <Sparkles className="w-5 h-5" />
                       </button>
                     </div>
-                    
+
                     <EmailDetail
                       email={selectedEmail}
                       onReply={handleReply}
@@ -939,9 +949,8 @@ export const DashboardPage: React.FC = () => {
 
               {/* AI Sidebar */}
               <div
-                className={`transition-all duration-300 ease-in-out overflow-y-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-l-2 border-purple-300 ${
-                  isAiSidebarOpen && selectedEmail ? "w-96" : "w-0"
-                }`}
+                className={`transition-all duration-300 ease-in-out overflow-y-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-l-2 border-purple-300 ${isAiSidebarOpen && selectedEmail ? "w-96" : "w-0"
+                  }`}
               >
                 {isAiSidebarOpen && selectedEmail && (
                   <div className="w-96 h-full p-4">
@@ -960,9 +969,8 @@ export const DashboardPage: React.FC = () => {
         ) : (
           // Kanban View
           <div
-            className={`flex-1 bg-white overflow-hidden ${
-              showMobileDetail ? "hidden" : "flex"
-            } lg:flex flex-col`}
+            className={`flex-1 bg-white overflow-hidden ${showMobileDetail ? "hidden" : "flex"
+              } lg:flex flex-col`}
           >
             {isLoadingEmails ? (
               <KanbanBoardSkeleton />
@@ -1022,21 +1030,21 @@ export const DashboardPage: React.FC = () => {
           replyTo={
             composeMode.type === "reply" && composeMode.email
               ? {
-                  id: composeMode.email.id,
-                  subject: composeMode.email.subject,
-                  from: composeMode.email.from,
-                  body: composeMode.email.body,
-                }
+                id: composeMode.email.id,
+                subject: composeMode.email.subject,
+                from: composeMode.email.from,
+                body: composeMode.email.body,
+              }
               : undefined
           }
           forwardEmail={
             composeMode.type === "forward" && composeMode.email
               ? {
-                  id: composeMode.email.id,
-                  subject: composeMode.email.subject,
-                  body: composeMode.email.body,
-                  attachments: composeMode.email.attachments,
-                }
+                id: composeMode.email.id,
+                subject: composeMode.email.subject,
+                body: composeMode.email.body,
+                attachments: composeMode.email.attachments,
+              }
               : undefined
           }
         />
