@@ -9,7 +9,7 @@ const STORAGE_KEY = 'kanban-column-config-v1';
 const CURRENT_VERSION = 1;
 
 // Valid Kanban status enum values
-const VALID_STATUSES = Object.values(KanbanEmailStatus);
+// const VALID_STATUSES = Object.values(KanbanEmailStatus);
 
 // ============================================
 // DEFAULT CONFIGURATION
