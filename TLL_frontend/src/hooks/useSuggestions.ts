@@ -1,44 +1,38 @@
 import { useMemo } from "react";
+import Fuse from "fuse.js";
+import type { IFuseOptions } from "fuse.js";
 import type { Email } from "../types/email.types";
+import { SEARCH_CONFIG } from "../constants/search.constants";
 
 export interface Suggestion {
   id: string;
   type: "sender" | "subject";
   text: string;
-  matchType: "prefix" | "substring";
+  matchType: "prefix" | "substring" | "fuzzy";
+  score?: number; // Fuse.js score (lower is better)
   email?: Email; // Reference for context
 }
 
 const COMMON_WORDS = new Set([
-  "the",
-  "and",
-  "for",
-  "are",
-  "with",
-  "this",
-  "that",
-  "from",
-  "have",
-  "your",
-  "about",
-  "will",
-  "been",
-  "was",
-  "were",
-  "but",
-  "not",
-  "you",
-  "all",
-  "can",
-  "her",
-  "his",
-  "our",
-  "they",
-  "them",
+  "the", "and", "for", "are", "with", "this", "that", "from",
+  "have", "your", "about", "will", "been", "was", "were", "but",
+  "not", "you", "all", "can", "her", "his", "our", "they", "them",
 ]);
 
+// Fuse.js configuration for optimal fuzzy search
+const FUSE_OPTIONS: IFuseOptions<any> = {
+  includeScore: true,
+  threshold: 0.35, // 0 = perfect match, 1 = match anything
+  distance: 100, // Maximum distance for fuzzy matching
+  minMatchCharLength: 2,
+  ignoreLocation: true, // Search entire string, not just beginning
+  keys: [
+    { name: "text", weight: 1 },
+  ],
+};
+
 /**
- * Hook to generate search suggestions from emails
+ * Hook to generate search suggestions from emails using Fuse.js for fuzzy matching
  * @param emails - List of emails to extract suggestions from
  * @param query - Current search query
  * @param maxSuggestions - Maximum number of suggestions to return (default: 5)
@@ -47,58 +41,63 @@ const COMMON_WORDS = new Set([
 export function useSuggestions(
   emails: Email[],
   query: string,
-  maxSuggestions = 5
+  maxSuggestions = SEARCH_CONFIG.MAX_SUGGESTIONS
 ): Suggestion[] {
   return useMemo(() => {
     // Don't show suggestions for very short queries
-    if (!query || query.length < 2) return [];
+    if (!query || query.length < SEARCH_CONFIG.MIN_QUERY_LENGTH) return [];
 
-    const suggestions: Suggestion[] = [];
-    const lowerQuery = query.toLowerCase();
+    const trimmedQuery = query.trim().toLowerCase();
 
-    // 1. Extract unique senders with most recent email
-    const senders = new Map<string, Email>();
+    // Step 1: Extract unique senders
+    const senderSuggestions: Suggestion[] = [];
+    const seenSenders = new Set<string>();
+
+    const senderMap = new Map<string, Email>();
     emails.forEach((email) => {
       const key = email.from.email.toLowerCase();
       if (
-        !senders.has(key) ||
-        new Date(email.date) > new Date(senders.get(key)!.date)
+        !senderMap.has(key) ||
+        new Date(email.date) > new Date(senderMap.get(key)!.date)
       ) {
-        senders.set(key, email);
+        senderMap.set(key, email);
       }
     });
 
-    // 2. Match senders against query
-    senders.forEach((email, senderEmail) => {
-      const senderName = email.from.name?.toLowerCase() || "";
-      const senderAddr = senderEmail.toLowerCase();
+    senderMap.forEach((email, senderEmail) => {
+      const senderName = email.from.name || senderEmail;
+      const senderNameLower = senderName.toLowerCase();
+      const senderEmailLower = senderEmail.toLowerCase();
 
-      // Prefix match on name (highest priority)
-      if (senderName.startsWith(lowerQuery)) {
-        suggestions.push({
-          id: `sender-${senderEmail}`,
-          type: "sender",
-          text: email.from.name || senderEmail,
-          matchType: "prefix",
-          email,
-        });
-      }
-      // Substring match on name or email
-      else if (
-        senderName.includes(lowerQuery) ||
-        senderAddr.includes(lowerQuery)
+      // Skip duplicates
+      if (seenSenders.has(senderNameLower)) return;
+
+      // Check if sender matches query
+      if (
+        senderNameLower.includes(trimmedQuery) ||
+        senderEmailLower.includes(trimmedQuery)
       ) {
-        suggestions.push({
+        // Determine match type for sorting
+        let matchType: "prefix" | "substring" | "fuzzy" = "substring";
+        if (senderNameLower.startsWith(trimmedQuery)) {
+          matchType = "prefix";
+        }
+
+        senderSuggestions.push({
           id: `sender-${senderEmail}`,
           type: "sender",
-          text: email.from.name || senderEmail,
-          matchType: "substring",
+          text: senderName,
+          matchType,
           email,
         });
+        seenSenders.add(senderNameLower);
       }
     });
 
-    // 3. Extract and match subject keywords
+    // Step 2: Extract subject keywords
+    const keywordSuggestions: Suggestion[] = [];
+    const seenKeywords = new Set<string>();
+
     const keywords = new Set<string>();
     emails.forEach((email) => {
       const words = email.subject
@@ -109,38 +108,101 @@ export function useSuggestions(
     });
 
     keywords.forEach((keyword) => {
-      // Prefix match on keyword
-      if (keyword.startsWith(lowerQuery)) {
-        suggestions.push({
+      if (seenKeywords.has(keyword)) return;
+
+      if (keyword.includes(trimmedQuery)) {
+        let matchType: "prefix" | "substring" | "fuzzy" = "substring";
+        if (keyword.startsWith(trimmedQuery)) {
+          matchType = "prefix";
+        }
+
+        keywordSuggestions.push({
           id: `subject-${keyword}`,
           type: "subject",
           text: keyword,
-          matchType: "prefix",
+          matchType,
         });
+        seenKeywords.add(keyword);
       }
-      // Substring match on keyword
-      else if (keyword.includes(lowerQuery)) {
-        suggestions.push({
-          id: `subject-${keyword}`,
-          type: "subject",
-          text: keyword,
-          matchType: "substring",
+    });
+
+    // Step 3: Combine and prepare for Fuse.js fuzzy search
+    const exactMatches = [...senderSuggestions, ...keywordSuggestions];
+
+    // Step 4: Apply Fuse.js for fuzzy matching on items that didn't exact match
+    const allCandidates: Array<{ text: string; type: "sender" | "subject"; email?: Email }> = [];
+
+    // Add senders that weren't exact matched
+    senderMap.forEach((email, senderEmail) => {
+      const senderName = email.from.name || senderEmail;
+      if (!seenSenders.has(senderName.toLowerCase())) {
+        allCandidates.push({
+          text: senderName,
+          type: "sender",
+          email,
         });
       }
     });
 
-    // 4. Sort and limit
-    return suggestions
+    // Add keywords that weren't exact matched
+    keywords.forEach((keyword) => {
+      if (!seenKeywords.has(keyword)) {
+        allCandidates.push({
+          text: keyword,
+          type: "subject",
+        });
+      }
+    });
+
+    // Run Fuse.js fuzzy search on remaining candidates
+    const fuse = new Fuse(allCandidates, FUSE_OPTIONS);
+    const fuzzyResults = fuse.search(trimmedQuery);
+
+    const fuzzySuggestions: Suggestion[] = fuzzyResults
+      .slice(0, maxSuggestions) // Limit fuzzy results
+      .map((result) => ({
+        id: `${result.item.type}-${result.item.text}`,
+        type: result.item.type,
+        text: result.item.text,
+        matchType: "fuzzy" as const,
+        score: result.score,
+        email: result.item.email,
+      }));
+
+    // Step 5: Combine exact matches + fuzzy matches
+    const allSuggestions = [...exactMatches, ...fuzzySuggestions];
+
+    // Step 6: Deduplicate by text (case-insensitive)
+    const uniqueSuggestions = new Map<string, Suggestion>();
+    allSuggestions.forEach((suggestion) => {
+      const key = suggestion.text.toLowerCase();
+      if (!uniqueSuggestions.has(key)) {
+        uniqueSuggestions.set(key, suggestion);
+      }
+    });
+
+    // Step 7: Sort by relevance
+    return Array.from(uniqueSuggestions.values())
       .sort((a, b) => {
-        // Prefix matches before substring matches
-        if (a.matchType !== b.matchType) {
-          return a.matchType === "prefix" ? -1 : 1;
+        // 1. Prefix matches first
+        if (a.matchType === "prefix" && b.matchType !== "prefix") return -1;
+        if (a.matchType !== "prefix" && b.matchType === "prefix") return 1;
+
+        // 2. Substring matches before fuzzy
+        if (a.matchType === "substring" && b.matchType === "fuzzy") return -1;
+        if (a.matchType === "fuzzy" && b.matchType === "substring") return 1;
+
+        // 3. For fuzzy matches, sort by score (lower is better)
+        if (a.matchType === "fuzzy" && b.matchType === "fuzzy") {
+          return (a.score || 0) - (b.score || 0);
         }
-        // Senders before subject keywords
+
+        // 4. Senders before subjects
         if (a.type !== b.type) {
           return a.type === "sender" ? -1 : 1;
         }
-        // Alphabetical within same type and match
+
+        // 5. Alphabetical
         return a.text.localeCompare(b.text);
       })
       .slice(0, maxSuggestions);
