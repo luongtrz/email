@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, AlertCircle } from "lucide-react";
+import { X } from "lucide-react";
 import type { KanbanColumnConfig, GmailLabel } from "../../types/kanban-config.types";
-import { KanbanEmailStatus } from "../../types/kanban.types";
 import { LabelSelector } from "../kanban/LabelSelector";
 
 interface ColumnEditorModalProps {
@@ -174,9 +173,8 @@ export function ColumnEditorModal({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Urgent, Waiting for Reply"
               maxLength={50}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.title ? 'border-red-300' : 'border-gray-300'
-              }`}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.title ? 'border-red-300' : 'border-gray-300'
+                }`}
             />
             {errors.title && (
               <p className="mt-1 text-xs text-red-600">{errors.title}</p>
@@ -197,9 +195,8 @@ export function ColumnEditorModal({
               disabled={isSystemColumn}
               placeholder="e.g., URGENT, WAITING_FOR_REPLY"
               maxLength={50}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.status ? 'border-red-300' : 'border-gray-300'
-              } ${isSystemColumn ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.status ? 'border-red-300' : 'border-gray-300'
+                } ${isSystemColumn ? 'bg-gray-50 cursor-not-allowed' : ''}`}
             />
             {errors.status && (
               <p className="mt-1 text-xs text-red-600">{errors.status}</p>
@@ -245,9 +242,8 @@ export function ColumnEditorModal({
                   key={colorOption}
                   type="button"
                   onClick={() => setColor(colorOption)}
-                  className={`w-8 h-8 rounded-full border-2 transition-all ${
-                    color === colorOption ? 'border-gray-900 scale-110' : 'border-gray-200'
-                  }`}
+                  className={`w-8 h-8 rounded-full border-2 transition-all ${color === colorOption ? 'border-gray-900 scale-110' : 'border-gray-200'
+                    }`}
                   style={{ backgroundColor: colorOption }}
                   title={colorOption}
                 />
@@ -266,11 +262,10 @@ export function ColumnEditorModal({
                   key={iconOption}
                   type="button"
                   onClick={() => setIcon(iconOption)}
-                  className={`px-3 py-2 text-sm border rounded-lg transition-all ${
-                    icon === iconOption
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  className={`px-3 py-2 text-sm border rounded-lg transition-all ${icon === iconOption
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:border-gray-300'
+                    }`}
                 >
                   {iconOption}
                 </button>
