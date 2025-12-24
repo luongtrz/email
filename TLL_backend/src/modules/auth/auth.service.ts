@@ -21,7 +21,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private googleTokenService: GoogleTokenService,
-  ) {}
+  ) { }
 
   async register(registerDto: RegisterDto) {
     const existingUser = await this.userRepository.findOne({
@@ -139,27 +139,35 @@ export class AuthService {
   }
 
   async refreshToken(userId: string, refreshToken: string) {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+      });
 
-    if (!user || !user.refreshToken) {
+      if (!user || !user.refreshToken) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      const isRefreshTokenValid = await bcrypt.compare(
+        refreshToken,
+        user.refreshToken,
+      );
+
+      if (!isRefreshTokenValid) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      const tokens = await this.generateTokens(user);
+      await this.updateRefreshToken(user.id, tokens.refreshToken);
+
+      return tokens;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      // For any other error (DB connection, invalid UUID, etc.), return 401 to force logout
       throw new UnauthorizedException('Invalid refresh token');
     }
-
-    const isRefreshTokenValid = await bcrypt.compare(
-      refreshToken,
-      user.refreshToken,
-    );
-
-    if (!isRefreshTokenValid) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-
-    const tokens = await this.generateTokens(user);
-    await this.updateRefreshToken(user.id, tokens.refreshToken);
-
-    return tokens;
   }
 
   async logout(userId: string) {

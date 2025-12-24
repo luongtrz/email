@@ -46,8 +46,8 @@ export class EmailContent {
     type: 'text',
     nullable: true,
   })
-  @Index('email_contents_embedding_idx', { synchronize: false }) // Created via migration
-  embedding?: string; // Stored as vector(768) in DB via migration
+  @Index('email_contents_embedding_idx')
+  embedding?: number[]; // Managed as vector(768) by pgvector
 
   @Column({ name: 'embedding_model', type: 'varchar', nullable: true })
   embeddingModel?: string;

@@ -596,7 +596,7 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
       },
     });
 
-    if (!snoozed.length) {
+    if (!snoozed || snoozed.length === 0) {
       return { restored: 0 };
     }
 

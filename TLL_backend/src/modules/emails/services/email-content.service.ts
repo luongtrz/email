@@ -10,7 +10,7 @@ export class EmailContentService {
     @InjectRepository(EmailContent)
     private emailContentRepository: Repository<EmailContent>,
     private embeddingService: EmbeddingService,
-  ) {}
+  ) { }
 
   /**
    * Store email content with embedding
@@ -25,38 +25,31 @@ export class EmailContentService {
     to: string[];
     date: Date;
   }): Promise<EmailContent> {
-    // Check if already exists
-    let emailContent = await this.emailContentRepository.findOne({
-      where: { emailId: params.emailId, userId: params.userId },
-    });
-
-    // Generate embedding
+    // Generate embedding first (expensive operation)
     const embedding = await this.embeddingService.generateEmailEmbedding(
       params.subject,
       params.body,
     );
-    const embeddingStr = this.embeddingService.vectorToString(embedding);
+    // const embeddingStr = this.embeddingService.vectorToString(embedding); // No longer needed with type: 'vector'
 
-    if (emailContent) {
-      // Update existing
-      emailContent.subject = params.subject;
-      emailContent.body = params.body;
-      emailContent.bodyPreview = params.bodyPreview;
-      emailContent.from = params.from;
-      emailContent.to = params.to;
-      emailContent.date = params.date;
-      emailContent.embedding = embeddingStr;
-      emailContent.embeddingModel = 'text-embedding-004';
-    } else {
-      // Create new
-      emailContent = this.emailContentRepository.create({
-        ...params,
-        embedding: embeddingStr,
-        embeddingModel: 'text-embedding-004',
-      });
-    }
+    // Prepare entity data
+    const entityData = this.emailContentRepository.create({
+      ...params,
+      embedding: embedding, // Pass array directly
+      embeddingModel: 'text-embedding-004',
+    });
 
-    return this.emailContentRepository.save(emailContent);
+    // Use UPSERT (Insert or Update on Conflict) to prevent race conditions
+    await this.emailContentRepository.upsert(
+      entityData,
+      ['userId', 'emailId'], // Unique constraint columns
+    );
+
+    // Return the entity (fetching it back to ensure we have the generated ID if needed, 
+    // though for sync performance we could skip this if return value isn't strictly used)
+    return this.emailContentRepository.findOne({
+      where: { emailId: params.emailId, userId: params.userId },
+    });
   }
 
   /**
