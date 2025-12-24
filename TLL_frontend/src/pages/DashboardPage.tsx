@@ -431,19 +431,19 @@ export const DashboardPage: React.FC = () => {
   // ========== EMAIL MOVE HANDLER (KANBAN) ==========
   const handleEmailMove = useCallback(
     async (emailId: string, targetColumnId: string) => {
-      // Special case: Snoozed requires time selection
-      if (targetColumnId === "snoozed") {
+      // Use config columns if available, otherwise fallback to defaults
+      const columns = isInitialized ? configColumns : DEFAULT_COLUMNS;
+
+      // Find target column to get status and Gmail label
+      const targetColumn = columns.find(col => col.id === targetColumnId);
+      if (!targetColumn) return;
+
+      // Special case: Snoozed requires time selection (check by status, not ID)
+      if (targetColumn.status === 'SNOOZED') {
         setEmailToSnooze(emailId);
         setSnoozeModalOpen(true);
         return;
       }
-
-      // Use config columns if available, otherwise fallback to defaults
-      const columns = isInitialized ? configColumns : DEFAULT_COLUMNS;
-
-      // Find target column to get backend status and Gmail label
-      const targetColumn = columns.find(col => col.id === targetColumnId);
-      if (!targetColumn) return;
 
       // Find source column to get previous Gmail label
       const email = processedEmails.find(e => e.id === emailId);
@@ -470,11 +470,11 @@ export const DashboardPage: React.FC = () => {
         targetGmailLabelId,
       });
 
-      // In Kanban view: update column with optional Gmail label
+      // In Kanban view: update status with optional Gmail label sync
       if (viewMode === "kanban") {
         updateStatusMutation.mutate({
           emailId,
-          columnId: targetColumn.id, // Send target column ID instead of status
+          status: targetColumn.status, // Send status from localStorage
           gmailLabelId: targetGmailLabelId,
           previousGmailLabelId
         });

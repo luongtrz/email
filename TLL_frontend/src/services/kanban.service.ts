@@ -2,7 +2,6 @@ import apiClient from "../lib/axios";
 import { API_ENDPOINTS } from "../config/constants";
 import type { Email } from "../types/email.types";
 import type { KanbanEmailStatusType } from "../types/kanban.types";
-import type { KanbanColumnConfig, CreateColumnInput, UpdateColumnInput } from "../types/kanban-config.types";
 
 export interface EmailSummary {
   summary: string;
@@ -37,7 +36,6 @@ export interface UpdateStatusRequest {
 export const kanbanService = {
   // Get emails with Kanban metadata (status, snoozeUntil, aiSummary)
   getKanbanEmails: async (filters?: {
-    columnId?: string;
     status?: KanbanEmailStatusType;
     isUnread?: boolean;
     hasAttachment?: boolean;
@@ -48,9 +46,8 @@ export const kanbanService = {
   }): Promise<{ emails: KanbanEmail[]; pagination: Record<string, unknown> }> => {
     const params: Record<string, unknown> = {};
 
-    // Prefer columnId if provided (new method), otherwise use status (backward compatibility)
-    if (filters?.columnId) params.columnId = filters.columnId;
-    else if (filters?.status) params.status = filters.status;
+    // Filter by status from localStorage column
+    if (filters?.status) params.status = filters.status;
 
     // Optional filters
     if (filters?.isUnread !== undefined) params.isUnread = filters.isUnread;
@@ -106,15 +103,15 @@ export const kanbanService = {
   },
 
   // Update email status (for Kanban column moves)
-  // Now uses columnId instead of status
+  // Status comes from localStorage column configuration
   updateStatus: async (
     emailId: string,
-    columnId: string,
+    status: string,
     gmailLabelId?: string | null,
     previousGmailLabelId?: string | null
   ): Promise<void> => {
     await apiClient.patch(API_ENDPOINTS.KANBAN.UPDATE_STATUS(emailId), {
-      columnId,
+      status,
       gmailLabelId,
       previousGmailLabelId,
     });
@@ -140,31 +137,5 @@ export const kanbanService = {
   restoreSnoozed: async (): Promise<RestoreSnoozedResponse> => {
     const response = await apiClient.post(API_ENDPOINTS.KANBAN.RESTORE_SNOOZED);
     return response.data;
-  },
-
-  // Get user columns from backend
-  getColumns: async (): Promise<KanbanColumnConfig[]> => {
-    const response = await apiClient.get('/api/kanban/columns');
-    return response.data;
-  },
-
-  // Create column
-  createColumn: async (column: CreateColumnInput): Promise<KanbanColumnConfig> => {
-    // Explicitly destructure to exclude isSystem (runtime protection)
-    const { title, status, gmailLabelId, gmailLabelName, color, icon, order } = column;
-    const payload = { title, status, gmailLabelId, gmailLabelName, color, icon, order };
-    const response = await apiClient.post('/api/kanban/columns', payload);
-    return response.data;
-  },
-
-  // Update column
-  updateColumn: async (columnId: string, updates: UpdateColumnInput): Promise<KanbanColumnConfig> => {
-    const response = await apiClient.patch(`/api/kanban/columns/${columnId}`, updates);
-    return response.data;
-  },
-
-  // Delete column
-  deleteColumn: async (columnId: string): Promise<void> => {
-    await apiClient.delete(`/api/kanban/columns/${columnId}`);
   },
 };

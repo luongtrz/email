@@ -67,13 +67,7 @@ export const useAllKanbanColumnsQuery = (
   // Ensure columns is always an array to prevent undefined errors
   const safeColumns = columns || [];
 
-  // Helper to check if a string is a valid UUID
-  const isUUID = (str: string) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(str);
-  };
-
-  // Track pages by columnId instead of status
+  // Track pages by columnId
   const [pages, setPages] = React.useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
     safeColumns.forEach((col) => {
@@ -103,13 +97,12 @@ export const useAllKanbanColumnsQuery = (
 
         // If loading page > 1, fetch only the new page and append
         if (previousPageData && currentPage > 1) {
-          // Fetch only the new page
-          // Use columnId if it's a UUID, otherwise fall back to status (for DEFAULT_COLUMNS)
-          const newPageResult = await kanbanService.getKanbanEmails(
-            isUUID(column.id)
-              ? { columnId: column.id, page: currentPage, limit }
-              : { status: column.status, page: currentPage, limit }
-          );
+          // Fetch only the new page using status from localStorage
+          const newPageResult = await kanbanService.getKanbanEmails({
+            status: column.status,
+            page: currentPage,
+            limit
+          });
 
           const total = typeof newPageResult.pagination.total === 'number'
             ? newPageResult.pagination.total
@@ -127,13 +120,12 @@ export const useAllKanbanColumnsQuery = (
           };
         }
 
-        // Initial load (page 1) - fetch only first page
-        // Use columnId if it's a UUID, otherwise fall back to status (for DEFAULT_COLUMNS)
-        const result = await kanbanService.getKanbanEmails(
-          isUUID(column.id)
-            ? { columnId: column.id, page: 1, limit }
-            : { status: column.status, page: 1, limit }
-        );
+        // Initial load (page 1) - fetch only first page using status from localStorage
+        const result = await kanbanService.getKanbanEmails({
+          status: column.status,
+          page: 1,
+          limit
+        });
 
         const total = typeof result.pagination.total === 'number'
           ? result.pagination.total
@@ -234,7 +226,7 @@ export const useGenerateSummaryMutation = () => {
 /**
  * Update email status (for Kanban column moves)
  * Uses optimistic updates for smooth UX
- * NOW USES COLUMN ID instead of status
+ * Status comes from localStorage column configuration
  */
 export const useUpdateStatusMutation = () => {
   const queryClient = useQueryClient();
@@ -242,16 +234,16 @@ export const useUpdateStatusMutation = () => {
   return useMutation({
     mutationFn: ({
       emailId,
-      columnId,
+      status,
       gmailLabelId,
       previousGmailLabelId
     }: {
       emailId: string;
-      columnId: string;
+      status: string;
       gmailLabelId?: string | null;
       previousGmailLabelId?: string | null;
     }) =>
-      kanbanService.updateStatus(emailId, columnId, gmailLabelId, previousGmailLabelId),
+      kanbanService.updateStatus(emailId, status, gmailLabelId, previousGmailLabelId),
 
     onSuccess: () => {
       // Invalidate all kanban queries to refetch updated data

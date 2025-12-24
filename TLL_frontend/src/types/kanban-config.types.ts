@@ -9,15 +9,15 @@ import type { KanbanEmailStatusType } from "./kanban.types";
  * Extends the basic KanbanColumn with additional fields for persistence and label sync
  */
 export interface KanbanColumnConfig {
-  id: string;                      // Unique identifier (e.g., "inbox", "todo")
-  title: string;                   // Display name (e.g., "Inbox", "To Do")
-  status: KanbanEmailStatusType;   // Backend status enum (INBOX, TODO, etc.)
+  id: string;                      // Unique identifier (UUID generated client-side)
+  title: string;                   // Display name (e.g., "Inbox", "Urgent", "Waiting for Reply")
+  status: KanbanEmailStatusType;   // Custom status string (e.g., INBOX, TODO, URGENT, WAITING_FOR_REPLY)
   gmailLabelId: string | null;     // Gmail label ID (e.g., "Label_123")
   gmailLabelName: string | null;   // Gmail label name for display
   color: string;                   // Hex color for column indicator
   icon: string;                    // Icon identifier
   order: number;                   // Display order (0-indexed)
-  isSystem: boolean;               // If true, cannot be deleted (e.g., Snoozed column)
+  isSystem: boolean;               // If true, cannot be deleted or modified (SNOOZED is the only system column)
   createdAt: string;               // ISO timestamp
   updatedAt: string;               // ISO timestamp
 }

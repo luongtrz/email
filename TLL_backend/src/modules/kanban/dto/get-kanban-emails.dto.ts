@@ -19,23 +19,12 @@ export enum SortOption {
 
 export class GetKanbanEmailsDto {
   @ApiPropertyOptional({
-    description: 'Column ID to filter by (new method)',
-    example: '550e8400-e29b-41d4-a716-446655440000',
+    example: 'INBOX',
+    description: 'Kanban column status (custom status supported)',
   })
   @IsOptional()
-  @IsUUID()
-  columnId?: string;
-
-  @ApiPropertyOptional({
-    enum: KanbanEmailStatus,
-    example: KanbanEmailStatus.INBOX,
-    description: 'Kanban column status (legacy method, use columnId instead)',
-  })
-  @IsOptional()
-  @IsEnum(KanbanEmailStatus, {
-    message: 'status must be one of: INBOX, TODO, IN_PROGRESS, DONE, SNOOZED',
-  })
-  status?: KanbanEmailStatus;
+  @IsString()
+  status?: string;
 
   @ApiPropertyOptional({
     example: true,
