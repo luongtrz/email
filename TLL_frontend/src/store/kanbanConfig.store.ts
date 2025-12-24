@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { v4 as uuidv4 } from "uuid";
 import type {
   KanbanColumnConfig,
   KanbanConfig,
@@ -6,8 +7,6 @@ import type {
   CreateColumnInput,
 } from "../types/kanban-config.types";
 import { KanbanStorage, DEFAULT_COLUMNS } from "../utils/kanban-storage.utils";
-import { KanbanEmailStatus } from "../types/kanban.types";
-import { kanbanService } from "../services/kanban.service";
 
 // ============================================
 // STATE INTERFACE
@@ -22,17 +21,17 @@ interface KanbanConfigState {
   error: string | null;
   isInitialized: boolean;
 
-  // CRUD Operations (now async to sync with backend)
-  loadConfig: () => Promise<void>;
-  addColumn: (column: CreateColumnInput) => Promise<void>;
-  updateColumn: (id: string, updates: Partial<KanbanColumnConfig>) => Promise<void>;
-  deleteColumn: (id: string) => Promise<void>;
+  // CRUD Operations (synchronous - localStorage only)
+  loadConfig: () => void;
+  addColumn: (column: CreateColumnInput) => void;
+  updateColumn: (id: string, updates: Partial<KanbanColumnConfig>) => void;
+  deleteColumn: (id: string) => void;
   reorderColumns: (sourceIndex: number, destIndex: number) => void;
 
   // Gmail Label Operations
   setGmailLabels: (labels: GmailLabel[]) => void;
-  mapLabelToColumn: (columnId: string, labelId: string, labelName: string) => Promise<void>;
-  unmapLabelFromColumn: (columnId: string) => Promise<void>;
+  mapLabelToColumn: (columnId: string, labelId: string, labelName: string) => void;
+  unmapLabelFromColumn: (columnId: string) => void;
 
   // Utility
   resetToDefaults: () => void;
@@ -44,6 +43,22 @@ interface KanbanConfigState {
 // ============================================
 
 export const useKanbanConfigStore = create<KanbanConfigState>((set, get) => {
+  // Helper function to save current state to LocalStorage
+  const persistState = () => {
+    const { columns } = get();
+    const config: KanbanConfig = {
+      version: 1,
+      columns,
+      lastModified: new Date().toISOString(),
+    };
+
+    try {
+      KanbanStorage.save(config);
+    } catch (error: any) {
+      set({ error: error.message });
+    }
+  };
+
   return {
     // Initial state
     columns: [],
@@ -53,88 +68,60 @@ export const useKanbanConfigStore = create<KanbanConfigState>((set, get) => {
     error: null,
     isInitialized: false,
 
-    // Load configuration from backend (with localStorage migration)
-    loadConfig: async () => {
+    // Load configuration from LocalStorage
+    loadConfig: () => {
       set({ isLoading: true, error: null });
 
       try {
-        // Fetch columns from backend
-        const backendColumns = await kanbanService.getColumns();
+        const savedConfig = KanbanStorage.load();
 
-        // If backend has columns, use them
-        if (backendColumns.length > 0) {
+        if (savedConfig) {
+          // Use saved configuration
           set({
-            columns: backendColumns,
+            columns: savedConfig.columns,
             isLoading: false,
             isInitialized: true,
           });
         } else {
-          // Backend is empty - check localStorage for migration
-          const localConfig = KanbanStorage.load();
-
-          if (localConfig && localConfig.columns.length > 0) {
-            console.log('Migrating columns from localStorage to backend...');
-
-            // Sync localStorage columns to backend
-            for (const col of localConfig.columns) {
-              await kanbanService.createColumn({
-                title: col.title,
-                status: col.status,
-                gmailLabelId: col.gmailLabelId,
-                gmailLabelName: col.gmailLabelName,
-                color: col.color,
-                icon: col.icon,
-                order: col.order,
-              });
-            }
-
-            // Reload from backend after sync
-            const syncedColumns = await kanbanService.getColumns();
-            set({
-              columns: syncedColumns,
-              isLoading: false,
-              isInitialized: true,
-            });
-
-            // Clear localStorage (optional - keep for rollback safety)
-            // KanbanStorage.clear();
-          } else {
-            // No local config either - backend should have created defaults
-            // Reload to get defaults
-            const defaultColumns = await kanbanService.getColumns();
-            set({
-              columns: defaultColumns.length > 0 ? defaultColumns : DEFAULT_COLUMNS,
-              isLoading: false,
-              isInitialized: true,
-            });
-          }
+          // First time user - use defaults
+          const defaultConfig = KanbanStorage.getDefaults();
+          KanbanStorage.save(defaultConfig);
+          set({
+            columns: defaultConfig.columns,
+            isLoading: false,
+            isInitialized: true,
+          });
         }
       } catch (error: any) {
-        console.error('Failed to load columns from backend:', error);
-
-        // Fallback to localStorage if backend fails
-        try {
-          const localConfig = KanbanStorage.load();
-          set({
-            columns: localConfig?.columns || DEFAULT_COLUMNS,
-            error: 'Using offline mode - failed to sync with server',
-            isLoading: false,
-            isInitialized: true,
-          });
-        } catch (fallbackError) {
-          set({
-            columns: DEFAULT_COLUMNS,
-            error: error.message,
-            isLoading: false,
-            isInitialized: true,
-          });
-        }
+        console.error('Failed to load Kanban config:', error);
+        // Fallback to defaults
+        set({
+          columns: DEFAULT_COLUMNS,
+          error: error.message,
+          isLoading: false,
+          isInitialized: true,
+        });
       }
     },
 
     // Add a new column
-    addColumn: async (columnInput: CreateColumnInput) => {
+    addColumn: (columnInput: CreateColumnInput) => {
       const { columns } = get();
+
+      // NEW: Validate no duplicate status (case-insensitive)
+      const duplicateStatus = columns.find(
+        col => col.status.toUpperCase() === columnInput.status.toUpperCase()
+      );
+      if (duplicateStatus) {
+        set({ error: `Column with status "${columnInput.status}" already exists` });
+        return;
+      }
+
+      // NEW: Prevent using SNOOZED for non-system columns
+      if (columnInput.status.toUpperCase() === 'SNOOZED') {
+        set({ error: 'SNOOZED is reserved for system column' });
+        return;
+      }
 
       // Check for duplicate label mapping
       if (columnInput.gmailLabelId) {
@@ -149,23 +136,20 @@ export const useKanbanConfigStore = create<KanbanConfigState>((set, get) => {
         }
       }
 
-      try {
-        // Create column via backend
-        const newColumn = await kanbanService.createColumn(columnInput);
+      const newColumn: KanbanColumnConfig = {
+        ...columnInput,
+        id: uuidv4(), // Client-side UUID
+        isSystem: false, // Never allow creating system columns
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-        // Update local state
-        set({
-          columns: [...columns, newColumn].sort((a, b) => a.order - b.order),
-          error: null,
-        });
-      } catch (error: any) {
-        console.error('Failed to create column:', error);
-        set({ error: 'Failed to create column' });
-      }
+      set({ columns: [...columns, newColumn], error: null });
+      persistState();
     },
 
     // Update an existing column
-    updateColumn: async (id: string, updates: Partial<KanbanColumnConfig>) => {
+    updateColumn: (id: string, updates: Partial<KanbanColumnConfig>) => {
       const { columns } = get();
 
       // Check for duplicate label mapping if label is being updated
@@ -190,7 +174,7 @@ export const useKanbanConfigStore = create<KanbanConfigState>((set, get) => {
 
       // Prevent modifying critical fields of system columns
       if (columnToUpdate.isSystem) {
-        if (updates.status && updates.status !== KanbanEmailStatus.SNOOZED) {
+        if (updates.status && updates.status !== 'SNOOZED') {
           set({ error: "Cannot change status of Snoozed column" });
           return;
         }
@@ -200,23 +184,29 @@ export const useKanbanConfigStore = create<KanbanConfigState>((set, get) => {
         }
       }
 
-      try {
-        // Update column via backend
-        const updatedColumn = await kanbanService.updateColumn(id, updates);
-
-        // Update local state
-        set({
-          columns: columns.map((col) => (col.id === id ? updatedColumn : col)),
-          error: null,
-        });
-      } catch (error: any) {
-        console.error('Failed to update column:', error);
-        set({ error: 'Failed to update column' });
+      // NEW: Validate no duplicate status when updating
+      if (updates.status) {
+        const duplicateStatus = columns.find(
+          col => col.status.toUpperCase() === updates.status!.toUpperCase() && col.id !== id
+        );
+        if (duplicateStatus) {
+          set({ error: `Column "${duplicateStatus.title}" already uses status "${updates.status}"` });
+          return;
+        }
       }
+
+      const updatedColumns = columns.map((col) =>
+        col.id === id
+          ? { ...col, ...updates, updatedAt: new Date().toISOString() }
+          : col
+      );
+
+      set({ columns: updatedColumns, error: null });
+      persistState();
     },
 
     // Delete a column
-    deleteColumn: async (id: string) => {
+    deleteColumn: (id: string) => {
       const { columns } = get();
       const columnToDelete = columns.find((col) => col.id === id);
 
@@ -231,19 +221,11 @@ export const useKanbanConfigStore = create<KanbanConfigState>((set, get) => {
         return;
       }
 
-      try {
-        // Delete column via backend
-        await kanbanService.deleteColumn(id);
-
-        // Update local state
-        set({
-          columns: columns.filter((col) => col.id !== id),
-          error: null,
-        });
-      } catch (error: any) {
-        console.error('Failed to delete column:', error);
-        set({ error: 'Failed to delete column' });
-      }
+      set({
+        columns: columns.filter((col) => col.id !== id),
+        error: null,
+      });
+      persistState();
     },
 
     // Reorder columns via drag-and-drop
@@ -270,17 +252,8 @@ export const useKanbanConfigStore = create<KanbanConfigState>((set, get) => {
         order: index,
       }));
 
-      // Update local state immediately for responsive UI
       set({ columns: withNewOrder, error: null });
-
-      // Sync with backend asynchronously
-      withNewOrder.forEach(async (col) => {
-        try {
-          await kanbanService.updateColumn(col.id, { order: col.order });
-        } catch (error) {
-          console.error(`Failed to update order for column ${col.id}:`, error);
-        }
-      });
+      persistState();
     },
 
     // Set available Gmail labels
@@ -289,7 +262,7 @@ export const useKanbanConfigStore = create<KanbanConfigState>((set, get) => {
     },
 
     // Map a Gmail label to a column
-    mapLabelToColumn: async (columnId: string, labelId: string, labelName: string) => {
+    mapLabelToColumn: (columnId: string, labelId: string, labelName: string) => {
       const { columns } = get();
 
       // Check if label is already mapped to another column
@@ -304,15 +277,15 @@ export const useKanbanConfigStore = create<KanbanConfigState>((set, get) => {
         return;
       }
 
-      await get().updateColumn(columnId, {
+      get().updateColumn(columnId, {
         gmailLabelId: labelId,
         gmailLabelName: labelName,
       });
     },
 
     // Remove Gmail label mapping from a column
-    unmapLabelFromColumn: async (columnId: string) => {
-      await get().updateColumn(columnId, {
+    unmapLabelFromColumn: (columnId: string) => {
+      get().updateColumn(columnId, {
         gmailLabelId: null,
         gmailLabelName: null,
       });

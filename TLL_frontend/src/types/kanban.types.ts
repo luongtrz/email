@@ -5,7 +5,8 @@ import type { Email } from "./email.types";
 // ============================================
 
 /**
- * KanbanEmailStatus enum values from backend
+ * KanbanEmailStatus enum - predefined status values for reference
+ * Note: Backend now accepts any custom status string (varchar), not just these enum values
  * @see TLL_backend/src/database/entities/email-metadata.entity.ts
  */
 export const KanbanEmailStatus = {
@@ -16,7 +17,8 @@ export const KanbanEmailStatus = {
   SNOOZED: "SNOOZED",
 } as const;
 
-export type KanbanEmailStatusType = typeof KanbanEmailStatus[keyof typeof KanbanEmailStatus];
+// Allow any string for custom statuses (not just predefined enum values)
+export type KanbanEmailStatusType = string;
 
 // ============================================
 // FRONTEND TYPES
@@ -25,7 +27,7 @@ export type KanbanEmailStatusType = typeof KanbanEmailStatus[keyof typeof Kanban
 export interface KanbanColumn {
   id: string;
   title: string;
-  status: KanbanEmailStatusType; // Backend status value
+  status: KanbanEmailStatusType; // Any custom status string (stored in localStorage)
   color?: string;
   icon?: string;
   order: number;

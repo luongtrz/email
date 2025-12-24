@@ -7,6 +7,7 @@ interface ColumnCardProps {
   onDelete: (columnId: string) => void;
   isDragging?: boolean;
   labelDeleted?: boolean;
+  dragListeners?: any;
 }
 
 export function ColumnCard({
@@ -15,6 +16,7 @@ export function ColumnCard({
   onDelete,
   isDragging = false,
   labelDeleted = false,
+  dragListeners,
 }: ColumnCardProps) {
   const handleDelete = () => {
     if (column.isSystem) {
@@ -36,7 +38,10 @@ export function ColumnCard({
       `}
     >
       {/* Drag Handle */}
-      <div className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
+      <div
+        className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+        {...dragListeners}
+      >
         <GripVertical className="w-5 h-5" />
       </div>
 

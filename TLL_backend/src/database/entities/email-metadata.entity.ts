@@ -9,7 +9,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from './user.entity';
-import { KanbanColumn } from './kanban-column.entity';
 
 export enum KanbanEmailStatus {
     INBOX = 'INBOX',
@@ -37,19 +36,13 @@ export class EmailMetadata {
 
   @Column({
     type: 'varchar',
-    default: KanbanEmailStatus.INBOX,
+    length: 50,
+    default: 'INBOX',
   })
-  status: KanbanEmailStatus;
+  status: string;
 
-  @Column({ name: 'column_id', type: 'uuid', nullable: true })
-  columnId?: string | null;
-
-  @ManyToOne(() => KanbanColumn, { nullable: true })
-  @JoinColumn({ name: 'column_id' })
-  column?: KanbanColumn | null;
-
-  @Column({ name: 'previous_status', type: 'varchar', nullable: true })
-  previousStatus?: KanbanEmailStatus | null;
+  @Column({ name: 'previous_status', type: 'varchar', length: 50, nullable: true })
+  previousStatus?: string | null;
 
   @Column({ name: 'ai_summary', type: 'text', nullable: true })
   aiSummary?: string | null;
