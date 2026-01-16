@@ -2751,9 +2751,15 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
 
 ---
 
-## 6. Color Usage & Contrast
+## 6. AI Summary Component
 
-### 6.1 Interactive Elements
+![alt text](images/UI11.png)
+
+---
+
+## 7. Color Usage & Contrast
+
+### 7.1 Interactive Elements
 
 **Buttons**:
 
@@ -2768,7 +2774,7 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
 - Underlined on hover
 - Visited: Purple (#9333ea)
 
-### 6.2 Contrast Requirements
+### 7.2 Contrast Requirements
 
 - Body text: Minimum 4.5:1 contrast (WCAG AA)
 - Large text: Minimum 3:1 contrast
@@ -2776,7 +2782,7 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
 
 ---
 
-## 7. Accessibility Features
+## 8. Accessibility Features
 
 **Keyboard Navigation**:
 
@@ -2803,7 +2809,7 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
 
 ---
 
-## 8. Responsive Breakpoints
+## 9. Responsive Breakpoints
 
 | Device         | Width      | Layout            | Columns |
 | -------------- | ---------- | ----------------- | ------- |
@@ -2815,9 +2821,9 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
 
 ---
 
-## 9. Design Patterns & Components
+## 10. Design Patterns & Components
 
-### 9.1 Loading States
+### 10.1 Loading States
 
 **Implementation Strategy**:
 
@@ -2825,7 +2831,7 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
 - **Spinner Indicators**: Circular progress indicators used for asynchronous actions like sending emails or submitting forms.
 - **Progress Bar**: Top-loading progress bar (NProgress) triggers on route transitions.
 
-### 9.2 Empty States
+### 10.2 Empty States
 
 **Component Logic**:
 
@@ -2833,7 +2839,7 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
 - **Content**: Features a contextual illustration (SVG), a clear message (e.g., "No emails found"), and a call-to-action (e.g., "Clear filters" or "Refresh").
 - **Implementation**: Reusable `<EmptyState icon={Icon} title="Title" action={BUTTON} />` component.
 
-### 9.3 Error States
+### 10.3 Error States
 
 **Handling Mechanisms**:
 
@@ -2841,7 +2847,7 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
 - **Component Boundaries**: React Error Boundaries wrap major sections (Dashboard, Kanban) to prevent the entire app from crashing.
 - **Network Issues**: Specific "Connection Lost" full-page overlay appears when the browser goes offline.
 
-### 9.4 Toast Notifications
+### 10.4 Toast Notifications
 
 **System Architecture**:
 
@@ -2852,15 +2858,15 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
 
 ---
 
-## 10. Animation & Transitions
+## 11. Animation & Transitions
 
-### 10.1 Transitions
+### 11.1 Transitions
 
 - **Standard Duration**: 200ms
 - **Long Duration**: 300ms (modals, full-page transitions)
 - **Easing**: cubic-bezier(0.4, 0, 0.2, 1) (Material Design)
 
-### 10.2 Animations
+### 11.2 Animations
 
 - **Email Card**: Slide in from left (200ms)
 - **Modal Appearance**: Fade in + scale (300ms)
@@ -2870,9 +2876,9 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
 
 ---
 
-## 11. UI Implementation Strategy
+## 12. UI Implementation Strategy
 
-### 11.1 Component Architecture
+### 12.1 Component Architecture
 
 **Atomic Design Approach**:
 
@@ -2886,7 +2892,7 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
 - **Radix UI**: Used for complex accessible primitives (Dialogs, Popovers, Dropdowns) to ensure full keyboard navigation and screen reader support without reinventing the wheel.
 - **Dnd-kit**: Chosen for the Kanban board due to its modular architecture, accessibility features, and support for multiple input methods (mouse, touch, keyboard).
 
-### 11.2 State Management
+### 12.2 State Management
 
 **Hybrid Approach**:
 
@@ -2898,7 +2904,14 @@ The TLL Email Client UI is designed with a **modern, clean aesthetic** emphasizi
   - Auth token storage
 - **Local State (useState)**: Used for ephemeral component interactions (form inputs, modal visibility).
 
-### 11.3 Styling Strategy
+**Data Fetching Strategy**:
+
+- **Handling Infinite Query**:
+  - **Implementation**: Utilized `useInfiniteQuery` from React Query to handle cursor-based pagination from the Gmail API.
+  - **Interaction**: "Load More" trigger or intersection observer at the bottom of the list automatically fetches the next page.
+  - **Optimization**: Previous pages remain cached, ensuring smooth scrolling back up without refetching.
+
+### 12.3 Styling Strategy
 
 **Tailwind CSS Configuration**:
 
