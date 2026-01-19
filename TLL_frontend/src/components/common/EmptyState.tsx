@@ -25,7 +25,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         <Icon className="w-12 h-12 text-gray-400" />
       </div>
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{title}</h3>
         {description && <p className="text-sm text-gray-600">{description}</p>}
       </div>
       {action && (
