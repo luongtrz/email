@@ -1,5 +1,5 @@
 import React from 'react';
-import { Inbox, Send, Star, Archive, Trash2, Mail } from 'lucide-react';
+import { Inbox, Send, Star, Archive, Trash2, Mail, Plus } from 'lucide-react';
 import type { Folder } from '../../types/email.types';
 
 const FOLDER_ICONS: Record<string, React.ReactNode> = {
@@ -27,57 +27,57 @@ export const FolderList: React.FC<FolderListProps> = ({
   isCollapsed = false,
 }) => {
   return (
-    <div className="h-full bg-white overflow-y-auto">
-      <div className="p-2 flex flex-col items-center">
-        {/* Gmail-style Compose Button */}
+    <div className="h-full bg-transparent flex flex-col pt-4 pb-4">
+      <div className="px-3 flex flex-col items-center">
+        {/* Primary Action Button (Compose) */}
         {onCompose && (
           <button
             onClick={onCompose}
-            className={`mb-4 flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all ${
-              isCollapsed ? "w-10 h-10 rounded-full p-0" : "px-4 py-2.5 rounded-2xl w-auto"
-            }`}
+            className={`mb-6 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 hover:shadow-xl transition-all duration-200 active:scale-95 ${isCollapsed ? "w-12 h-12 rounded-2xl p-0" : "w-full py-3 rounded-xl"
+              }`}
             title={isCollapsed ? "Compose" : undefined}
           >
-            <div className="w-5 h-5 flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            {!isCollapsed && <span className="font-medium">Compose</span>}
+            {isCollapsed ? (
+              <Plus className="w-6 h-6" />
+            ) : (
+              <>
+                <Plus className="w-5 h-5" strokeWidth={2.5} />
+                <span className="font-semibold text-[15px]">New Message</span>
+              </>
+            )}
           </button>
         )}
 
-        {/* Mailboxes */}
-        <nav className="space-y-0.5 w-full">
+        {/* Mailboxes Navigation - Pill Style */}
+        <nav className="space-y-1.5 w-full">
           {folders.map((folder) => {
             const icon = FOLDER_ICONS[folder.id.toLowerCase()] || FOLDER_ICONS.default;
-            
+            const isActive = activeFolder === folder.id;
+
             return (
               <button
                 key={folder.id}
                 onClick={() => onFolderChange(folder.id)}
                 className={`
-                  w-full flex items-center transition-all text-sm font-medium
-                  ${
-                    isCollapsed
-                      ? "justify-center px-2 py-2 rounded-lg"
-                      : "justify-between px-3 py-2 rounded-r-full"
+                  w-full flex items-center transition-all duration-200 text-sm group relative overflow-hidden
+                  ${isCollapsed
+                    ? "justify-center h-10 w-10 mx-auto rounded-xl"
+                    : "justify-between px-4 py-2.5 rounded-xl"
                   }
-                  ${
-                    activeFolder === folder.id
-                      ? 'bg-red-100 text-red-900'
-                      : 'text-gray-700 hover:bg-gray-100'
+                  ${isActive
+                    ? 'bg-indigo-400 text-white shadow-lg shadow-indigo-200 font-medium'
+                    : 'text-gray-600 hover:bg-white hover:shadow-sm hover:text-gray-900'
                   }
                 `}
                 title={isCollapsed ? `${folder.name}${folder.count > 0 ? ` (${folder.count})` : ""}` : undefined}
               >
                 {isCollapsed ? (
-                  <div className="relative">
-                    <div className={activeFolder === folder.id ? 'text-red-700' : 'text-gray-600'}>
+                  <div className="relative flex items-center justify-center">
+                    <div className={`${isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'}`}>
                       {icon}
                     </div>
                     {folder.count > 0 && (
-                      <span className={`absolute -top-2 -right-3 bg-red-600 text-white text-xs rounded-full h-4 flex items-center justify-center ${folder.count > 9 ? 'w-5' : 'w-4'}`}>
+                      <span className={`absolute -top-1.5 ${folder.count > 9 ? "-right-3" : "-right-1.5"} text-rose-500 text-xs font-black leading-none`}>
                         {folder.count > 9 ? "9+" : folder.count}
                       </span>
                     )}
@@ -85,21 +85,14 @@ export const FolderList: React.FC<FolderListProps> = ({
                 ) : (
                   <>
                     <div className="flex items-center gap-3">
-                      <div className={activeFolder === folder.id ? 'text-red-700' : 'text-gray-600'}>
+                      <div className={`${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`}>
                         {icon}
                       </div>
-                      <span>{folder.name}</span>
+                      <span className="tracking-tight">{folder.name}</span>
                     </div>
-                    {(folder.count > 0 || (folder.totalCount && folder.totalCount > 0)) && (
-                      <span className="text-xs font-semibold text-gray-600">
-                        {folder.count > 0 && folder.totalCount ? (
-                          <>
-                            <span className="text-red-600">{folder.count}</span>
-                            <span className="text-gray-400"> / {folder.totalCount}</span>
-                          </>
-                        ) : (
-                          folder.totalCount || folder.count
-                        )}
+                    {(folder.count > 0) && (
+                      <span className={`text-xs ${isActive ? 'font-bold text-white/90' : 'font-medium text-gray-400 group-hover:text-gray-600'}`}>
+                        {folder.count}
                       </span>
                     )}
                   </>
