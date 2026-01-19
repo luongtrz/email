@@ -147,7 +147,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     // Determine the target column:
     // 1. Check if dropped directly on a column
     let targetColumn = columns.find((col) => col.id === overId);
-    
+
     // 2. If not, find which column the dropped card belongs to
     if (!targetColumn) {
       const targetCard = cards.find((card) => card.id === overId);
@@ -165,7 +165,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     if (originalColumnId && originalColumnId !== targetColumn.id) {
       onEmailMove?.(activeCard.email.id, targetColumn.id); // Pass column ID
     }
-    
+
     // Reset original column ID
     setOriginalColumnId(null);
   };
@@ -182,7 +182,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   );
 
   return (
-    <>
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Kanban Controls: Filter, Sort, and Snoozed Toggle */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 gap-4">
         {/* Left: Filter and Sort Controls */}
@@ -216,7 +216,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               <option value="sender_desc">Sender Z-A</option>
             </select>
           </div>
-          
+
           {/* Active Filter Indicator */}
           {filterMode !== "ALL" && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
@@ -246,11 +246,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           {/* Snoozed Toggle */}
           <button
             onClick={() => setShowSnoozed(!showSnoozed)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-              showSnoozed
-                ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                : "bg-purple-50 text-purple-600 hover:bg-purple-100"
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${showSnoozed
+              ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              : "bg-purple-50 text-purple-600 hover:bg-purple-100"
+              }`}
             title={showSnoozed ? "Hide Snoozed Column" : "Show Snoozed Column"}
           >
             {showSnoozed ? (
@@ -283,7 +282,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         onDragEnd={handleDragEnd}
       >
         {/* Desktop: Horizontal scroll, Mobile/Tablet: Vertical stack */}
-        <div className="flex flex-col lg:flex-row lg:gap-6 lg:overflow-x-auto pb-6 px-4 min-h-[600px] gap-4">
+        <div className="flex flex-col lg:flex-row lg:gap-6 lg:overflow-x-auto overflow-y-auto pb-6 px-4 flex-1 min-h-0 gap-4">
           {visibleColumns.map((column) => (
             <KanbanColumn
               key={column.id}
@@ -302,7 +301,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           {activeCard ? (
             <KanbanCard
               email={activeCard.email}
-              onClick={() => {}}
+              onClick={() => { }}
               onStar={onCardStar}
               isSelected={false}
             />
@@ -315,6 +314,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
       />
-    </>
+    </div>
   );
 };

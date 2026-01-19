@@ -53,10 +53,8 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const cardIds = cards.map((card) => card.id);
 
   return (
-    <div 
-      className={`flex flex-col w-full lg:w-72 bg-gray-50 rounded-lg border border-gray-200 transition-all ${
-        isCollapsed ? 'lg:min-h-[600px]' : 'lg:min-h-[600px]'
-      }`}
+    <div
+      className={`flex flex-col w-full lg:w-72 lg:flex-shrink-0 bg-gray-50 rounded-lg border border-gray-200 transition-all`}
     >
       {/* Column Header */}
       <div className="p-4 border-b border-gray-200 bg-white rounded-t-lg">
@@ -92,83 +90,82 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       {!isCollapsed && (
         <div
           ref={setNodeRef}
-          className={`flex-1 p-2 space-y-2 overflow-y-auto max-h-[500px] lg:max-h-none transition-colors ${
-            isOver ? "bg-blue-50 border-2 border-dashed border-blue-300" : ""
-          }`}
+          className={`flex-1 p-2 space-y-2 overflow-y-auto transition-colors ${isOver ? "bg-blue-50 border-2 border-dashed border-blue-300" : ""
+            }`}
         >
-        {cards.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-32 text-gray-400">
-            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
+          {cards.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 text-gray-400">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2">
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              <p className="text-sm">No emails</p>
             </div>
-            <p className="text-sm">No emails</p>
-          </div>
-        ) : (
-          <>
-            <SortableContext
-              items={cardIds}
-              strategy={verticalListSortingStrategy}
-            >
-              {cards.map((card) => (
-                <KanbanCard
-                  key={card.id}
-                  email={card.email}
-                  onClick={onCardClick}
-                  onStar={onCardStar}
-                  isSelected={selectedEmailId === card.email.id}
-                />
-              ))}
-            </SortableContext>
-          </>
-        )}
-        
-        {/* Load More Button - Always show at bottom if there are cards */}
-        {cards.length > 0 && (
-          <div className="mt-2">
-            {onLoadMore ? (
-              <button
-                onClick={onLoadMore}
-                disabled={isLoadingMore}
-                className="w-full py-3 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors border-2 border-dashed border-blue-200 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          ) : (
+            <>
+              <SortableContext
+                items={cardIds}
+                strategy={verticalListSortingStrategy}
               >
-                {isLoadingMore ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
-                    <span>Loading more...</span>
-                  </div>
-                ) : (
+                {cards.map((card) => (
+                  <KanbanCard
+                    key={card.id}
+                    email={card.email}
+                    onClick={onCardClick}
+                    onStar={onCardStar}
+                    isSelected={selectedEmailId === card.email.id}
+                  />
+                ))}
+              </SortableContext>
+            </>
+          )}
+
+          {/* Load More Button - Always show at bottom if there are cards */}
+          {cards.length > 0 && (
+            <div className="mt-2">
+              {onLoadMore ? (
+                <button
+                  onClick={onLoadMore}
+                  disabled={isLoadingMore}
+                  className="w-full py-3 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors border-2 border-dashed border-blue-200 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoadingMore ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+                      <span>Loading more...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>Load More</span>
+                    </div>
+                  )}
+                </button>
+              ) : (
+                <div className="w-full py-3 text-sm font-medium text-gray-400 text-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
                   <div className="flex items-center justify-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>Load More</span>
+                    <span>All emails loaded</span>
                   </div>
-                )}
-              </button>
-            ) : (
-              <div className="w-full py-3 text-sm font-medium text-gray-400 text-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
-                <div className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>All emails loaded</span>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
