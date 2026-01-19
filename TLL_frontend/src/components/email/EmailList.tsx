@@ -76,8 +76,8 @@ export const EmailList: React.FC<EmailListProps> = ({
 
   return (
     <div ref={listRef} className="h-full overflow-y-auto bg-white">
-      {/* Email List */}
-      <div className="divide-y divide-gray-100">
+      {/* Email List - Clean White Container */}
+      <div className="flex flex-col">
         {emails.map((email) => (
           <EmailListItem
             key={email.id}
@@ -90,6 +90,7 @@ export const EmailList: React.FC<EmailListProps> = ({
                 ? (checked) => onEmailToggle(email.id, checked)
                 : undefined
             }
+            onToggleStar={onToggleStar ? () => onToggleStar(email.id) : undefined}
             registerRef={(el) => registerItem(email.id, el)}
           />
         ))}
@@ -97,7 +98,7 @@ export const EmailList: React.FC<EmailListProps> = ({
 
       {/* Loading Indicator at Bottom */}
       {isLoadingMore && (
-        <div className="p-4">
+        <div className="py-4 flex justify-center border-t border-gray-100">
           <EmailListLoader />
         </div>
       )}

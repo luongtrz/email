@@ -87,7 +87,10 @@ export const DashboardPage: React.FC = () => {
   // ========== UI STATE ==========
   const [showMobileDetail, setShowMobileDetail] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(() => {
+    const saved = localStorage.getItem('showSidebar');
+    return saved !== null ? saved === 'true' : true; // Default true
+  });
   const [showCompose, setShowCompose] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
@@ -98,19 +101,26 @@ export const DashboardPage: React.FC = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [emailToDelete, setEmailToDelete] = useState<string | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
-  const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false);
+  const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('isAiSidebarOpen');
+    return saved === 'true';
+  });
   const [snoozeModalOpen, setSnoozeModalOpen] = useState(false);
   const [emailToSnooze, setEmailToSnooze] = useState<string | null>(null);
+  const [isLoadingEmailDetail, setIsLoadingEmailDetail] = useState(false);
 
   // ========== REACT QUERY HOOKS ==========
   // Use Kanban API when in Kanban view to get metadata (status, snoozeUntil)
   // Map configColumns to format expected by useAllKanbanColumnsQuery
   // Use DEFAULT_COLUMNS as fallback if store not initialized or empty
   // Memoize to prevent hook order violations
-  const columnConfigs = useMemo(() => {
-    const columnsToUse = (isInitialized && configColumns.length > 0) ? configColumns : DEFAULT_COLUMNS;
-    return columnsToUse.map(col => ({ id: col.id, status: col.status }));
+  const fullColumnConfigs = useMemo(() => {
+    return (isInitialized && configColumns.length > 0) ? configColumns : DEFAULT_COLUMNS;
   }, [isInitialized, configColumns]);
+
+  const columnConfigs = useMemo(() => {
+    return fullColumnConfigs.map(col => ({ id: col.id, status: col.status }));
+  }, [fullColumnConfigs]);
 
   const kanbanData = useAllKanbanColumnsQuery(columnConfigs, 20); // Fetch all columns for Kanban view (20 emails per column per page)
 
@@ -238,14 +248,41 @@ export const DashboardPage: React.FC = () => {
   // ========== RESIZABLE PANEL ==========
   const {
     width: emailListWidth,
-    isResizing,
-    handleMouseDown,
+    isResizing: isResizingEmailList,
+    handleMouseDown: handleEmailListMouseDown,
   } = useResizable({
     minWidth: 300,
     maxWidth: 1200,
     defaultWidth: 608,
     offsetLeft: 224,
+    storageKey: 'emailListWidth',
+    direction: 'right',
   });
+
+  // AI Summary Panel Resizable (resize from left edge)
+  const {
+    width: aiPanelWidth,
+    isResizing: isResizingAiPanel,
+    handleMouseDown: handleAiPanelMouseDown,
+  } = useResizable({
+    minWidth: 280,
+    maxWidth: 600,
+    defaultWidth: 384,
+    storageKey: 'aiPanelWidth',
+    direction: 'left',
+  });
+
+
+
+  // Save AI sidebar toggle state to localStorage
+  useEffect(() => {
+    localStorage.setItem('isAiSidebarOpen', isAiSidebarOpen.toString());
+  }, [isAiSidebarOpen]);
+
+  // Save sidebar navigation toggle state to localStorage
+  useEffect(() => {
+    localStorage.setItem('showSidebar', showSidebar.toString());
+  }, [showSidebar]);
 
   const userMenuRef = useOutsideClick(() => setShowUserMenu(false));
 
@@ -301,7 +338,8 @@ export const DashboardPage: React.FC = () => {
       const emailFromList = emails.find((e) => e.id === emailId);
       if (!emailFromList) return;
 
-      // Clear current selection first to avoid showing stale data
+      // Show loading state and clear current selection
+      setIsLoadingEmailDetail(true);
       setSelectedEmail(null);
 
       // Fetch full email with body from server (important for search results)
@@ -322,6 +360,8 @@ export const DashboardPage: React.FC = () => {
       } catch (error) {
         logger.error("Failed to fetch full email", error);
         toast.error("Failed to load email details");
+      } finally {
+        setIsLoadingEmailDetail(false);
       }
 
       // Mark as read with optimistic update
@@ -645,14 +685,15 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div
-      className={`h-screen flex flex-col bg-gray-50 ${isResizing ? "cursor-col-resize select-none" : ""
+      className={`h-screen flex flex-col bg-gradient-to-br from-slate-100 via-white to-blue-50 selection:bg-indigo-100 selection:text-indigo-900 ${(isResizingEmailList || isResizingAiPanel) ? "cursor-col-resize select-none" : ""
         }`}
     >
       {/* Gmail-style Header */}
-      <header className="bg-white border-b border-gray-200 flex-shrink-0">
-        <div className="px-3 py-2 flex items-center justify-between gap-3">
-          {/* Left Section */}
-          <div className="flex items-center gap-2">
+      {/* Gmail-style Header - Clean & Modern */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 flex-shrink-0 sticky top-0 z-30">
+        <div className="px-4 py-3 flex items-center justify-between gap-4">
+          {/* Left Section - Branding & Toggle */}
+          <div className="flex items-center gap-3">
             <button
               onClick={() => {
                 if (window.innerWidth >= 1024) {
@@ -661,24 +702,28 @@ export const DashboardPage: React.FC = () => {
                   setShowMobileMenu(true);
                 }
               }}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors lg:hidden"
+              className="p-2 -ml-2 hover:bg-gray-100/80 rounded-lg text-gray-500 hover:text-gray-900 transition-all duration-200 lg:hidden"
               aria-label="Toggle menu"
             >
-              <Menu className="w-5 h-5 text-gray-600" />
+              <Menu className="w-5 h-5" />
             </button>
 
             <button
               onClick={() => setShowSidebar(!showSidebar)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors hidden lg:block"
+              className={`p-2 -ml-2 hover:bg-gray-100/80 rounded-lg text-gray-400 hover:text-gray-900 transition-all duration-200 hidden lg:block ${!showSidebar ? "bg-gray-50 text-gray-900" : ""}`}
               aria-label="Toggle sidebar"
             >
-              <Menu className="w-5 h-5 text-gray-600" />
+              <Menu className="w-5 h-5" />
             </button>
 
-            <Mail className="w-7 h-7 text-blue-600 hidden sm:block" />
-            <h1 className="text-xl font-semibold text-gray-800 hidden sm:block">
-              Email Dashboard
-            </h1>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200">
+                <Mail className="w-5 h-5 text-white" strokeWidth={2.5} />
+              </div>
+              <h1 className="text-lg font-semibold text-gray-900 hidden sm:block tracking-tight">
+                Mailbox
+              </h1>
+            </div>
           </div>
 
           {/* Search Bar */}
@@ -739,11 +784,11 @@ export const DashboardPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar - Desktop */}
+      {/* Main Content - Floating Board Layout */}
+      <div className="flex-1 flex overflow-hidden p-3 gap-3">
+        {/* Sidebar - Desktop (Floating Card) */}
         <div
-          className={`hidden lg:flex flex-col border-r border-gray-200 bg-white transition-all duration-200 ${showSidebar ? "w-56" : "w-16"
+          className={`hidden ${viewMode === "kanban" ? "" : "lg:flex"} flex-col bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 transition-all duration-200 ${showSidebar ? "w-56" : "w-16"
             }`}
         >
           <FolderList
@@ -786,9 +831,10 @@ export const DashboardPage: React.FC = () => {
           // Traditional List View
           <>
             <div
-              className={`relative flex-shrink-0 flex flex-col bg-white border-r border-gray-200 ${showMobileDetail ? "hidden" : "flex"
-                } lg:flex`}
-              style={{ width: `${emailListWidth}px` }}
+              className={`relative flex-shrink-0 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100/50
+                overflow-hidden min-h-0
+                ${showMobileDetail ? "hidden" : "flex"} lg:flex`}
+              style={{ width: emailListWidth }}
             >
               {/* Bulk Actions Bar */}
               {selectedEmails.size > 0 && (
@@ -848,95 +894,84 @@ export const DashboardPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Email List Content */}
-              <div className="flex-1 overflow-y-auto">
-                {isLoadingEmails ? (
-                  <EmailListSkeleton />
-                ) : isGmailNotConnected ? (
-                  <div className="p-8 text-center">
-                    <p className="text-gray-600 mb-4">
-                      Gmail account not connected
-                    </p>
-                    <a
-                      href="/auth/google/url"
-                      className="text-blue-600 hover:underline"
-                    >
-                      Connect Gmail
-                    </a>
-                  </div>
-                ) : emails.length === 0 ? (
-                  <div className="p-8 text-center text-gray-500">
-                    <Mail className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg font-medium">
-                      {isSearchMode && debouncedSearchQuery.length >= 3
-                        ? `No results for "${debouncedSearchQuery}"`
-                        : "No emails found"}
-                    </p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      {isSearchMode && debouncedSearchQuery.length >= 3
-                        ? "Try a different search query or check your spelling"
-                        : "This folder is empty"}
-                    </p>
-                    {isSearchMode && debouncedSearchQuery.length >= 3 && (
-                      <button
-                        onClick={handleClearSearch}
-                        className="mt-4 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        Back to {activeFolder}
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <EmailList
-                    emails={emails}
-                    selectedEmailId={selectedEmail?.id || null}
-                    onEmailSelect={handleEmailSelect}
-                    onToggleStar={handleToggleStar}
-                    selectedEmails={selectedEmails}
-                    onEmailToggle={handleEmailCheckbox}
-                    isLoadingMore={isFetchingNextPage}
-                    onLoadMore={hasNextPage ? handleLoadMore : undefined}
-                  />
-                )}
+              <div className="flex-1 overflow-hidden flex flex-col">
+                {/* Email List Content */}
+                <div className="flex-1 min-h-0 relative">
+                  {/* ... (Email List Component render) ... */}
+                  {isLoadingEmails ? (
+                    <EmailListSkeleton />
+                  ) : filterMode === "UNREAD" && emails.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                        <MailOpen className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-1">
+                        All caught up!
+                      </h3>
+                      <p className="text-gray-500 mb-4">
+                        No unread emails in {activeFolder}
+                      </p>
+                      {activeFolder !== "inbox" && (
+                        <button
+                          onClick={() => setActiveFolder("inbox")}
+                          className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                        >
+                          <ChevronDown className="w-4 h-4 rotate-90" />
+                          Back to Inbox
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <EmailList
+                      emails={emails}
+                      selectedEmailId={selectedEmail?.id || null}
+                      onEmailSelect={handleEmailSelect}
+                      onToggleStar={handleToggleStar}
+                      selectedEmails={selectedEmails}
+                      onEmailToggle={handleEmailCheckbox}
+                      isLoadingMore={isFetchingNextPage}
+                      onLoadMore={hasNextPage ? handleLoadMore : undefined}
+                    />
+                  )}
+                </div>
               </div>
 
-              {/* Resize Handle */}
+              {/* Invisible Resize Handle - Visible on Hover */}
               <div
-                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 transition-colors"
-                onMouseDown={handleMouseDown}
+                className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-20 bg-gray-300 hover:bg-gray-400 transition-colors"
+                onMouseDown={handleEmailListMouseDown}
               />
             </div>
 
-            {/* Email Detail */}
+            {/* Email Detail (Floating Card) */}
+            {/* Email Detail & AI Wrapper (Transparent container for layout) */}
             <div
-              className={`flex-1 bg-white overflow-hidden flex ${!showMobileDetail && "hidden lg:flex"
+              className={`flex-1 flex gap-3 overflow-hidden min-w-0 bg-transparent ${!showMobileDetail && "hidden lg:flex"
                 }`}
             >
-              {/* Main Email Detail Content */}
-              <div className="flex-1 overflow-y-auto">
-                {selectedEmail ? (
-                  <>
-                    {/* AI Button - Top Right Corner */}
-                    <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-2 flex justify-end">
-                      <button
-                        onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)}
-                        className={`p-2 rounded-lg transition-all ${isAiSidebarOpen
-                          ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
-                          : "hover:bg-gray-100 text-gray-700 hover:text-purple-600"
-                          }`}
-                        title="AI Summary (Powered by Gemini)"
-                      >
-                        <Sparkles className="w-5 h-5" />
-                      </button>
+              {/* Main Email Detail Content (Floating Card) */}
+              <div className={`flex-1 flex flex-col overflow-hidden min-w-0 rounded-2xl shadow-sm bg-white border border-white/50 ${isAiSidebarOpen && selectedEmail ? "" : ""}`}>
+                {isLoadingEmailDetail ? (
+                  <div className="h-full flex items-center justify-center text-gray-400">
+                    <div className="text-center">
+                      <div className="relative">
+                        <Mail className="w-16 h-16 mx-auto mb-4 text-blue-400 animate-pulse" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+                        </div>
+                      </div>
+                      <p className="text-lg font-medium text-gray-600">Loading email...</p>
                     </div>
-
-                    <EmailDetail
-                      email={selectedEmail}
-                      onReply={handleReply}
-                      onForward={handleForward}
-                      onClose={handleBackToList}
-                    />
-                  </>
+                  </div>
+                ) : selectedEmail ? (
+                  <EmailDetail
+                    email={selectedEmail}
+                    onReply={handleReply}
+                    onForward={handleForward}
+                    onClose={handleBackToList}
+                    onToggleAi={() => setIsAiSidebarOpen(!isAiSidebarOpen)}
+                    isAiOpen={isAiSidebarOpen}
+                  />
                 ) : (
                   <div className="h-full flex items-center justify-center text-gray-400">
                     <div className="text-center">
@@ -947,23 +982,38 @@ export const DashboardPage: React.FC = () => {
                 )}
               </div>
 
-              {/* AI Sidebar */}
-              <div
-                className={`transition-all duration-300 ease-in-out overflow-y-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-l-2 border-purple-300 ${isAiSidebarOpen && selectedEmail ? "w-96" : "w-0"
-                  }`}
-              >
-                {isAiSidebarOpen && selectedEmail && (
-                  <div className="w-96 h-full p-4">
-                    <div className="sticky top-0 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 pb-2 mb-4 border-b-2 border-purple-300 z-10">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-purple-600" />
-                        <h3 className="font-semibold text-gray-800">AI Space</h3>
+              {/* AI Summary Panel - Right Side (Floating Card) */}
+              {isAiSidebarOpen && selectedEmail && (
+                <div
+                  className="relative flex-shrink-0 overflow-y-auto bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-white/50 group ms-1"
+                  style={{ width: aiPanelWidth }}
+                >
+                  {/* Invisible Resize Handle - Left Edge */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize z-20 bg-gray-300 hover:bg-gray-400 transition-colors"
+                    onMouseDown={handleAiPanelMouseDown}
+                  />
+
+                  {/* AI Panel Header */}
+                  <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1 rounded-md bg-purple-50 text-purple-600">
+                        <Sparkles className="w-4 h-4" />
                       </div>
+                      <h3 className="font-semibold text-gray-900 tracking-tight text-sm">AI Insights</h3>
                     </div>
+                    <button
+                      onClick={() => setIsAiSidebarOpen(false)}
+                      className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="p-5">
                     <EmailSummaryCard emailId={selectedEmail.id} summary={selectedEmail.aiSummary} />
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -1003,7 +1053,7 @@ export const DashboardPage: React.FC = () => {
             ) : (
               <KanbanBoard
                 emails={processedEmails}
-                columns={isInitialized ? configColumns : DEFAULT_COLUMNS}
+                columns={fullColumnConfigs}
                 onCardClick={handleKanbanCardClick}
                 onCardStar={handleToggleStar}
                 onEmailMove={handleEmailMove}
