@@ -182,9 +182,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   );
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       {/* Kanban Controls: Filter, Sort, and Snoozed Toggle */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 gap-4">
+      <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 gap-4 transition-colors duration-300">
         {/* Left: Filter and Sort Controls */}
         <div className="flex items-center gap-3">
           {/* Filter Dropdown */}
@@ -193,7 +193,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             <select
               value={filterMode}
               onChange={(e) => setFilterMode(e.target.value as "ALL" | "UNREAD" | "STARRED" | "HAS_ATTACHMENT")}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 dark:text-slate-200 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
             >
               <option value="ALL">All Emails</option>
               <option value="UNREAD">Unread Only</option>
@@ -208,7 +208,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "sender_asc" | "sender_desc")}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 dark:text-slate-200 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>

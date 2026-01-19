@@ -7,10 +7,10 @@ import { EmailDetailAttachments } from "./detail/EmailDetailAttachments";
 import { EmailSummaryCard } from "./EmailSummaryCard";
 import type { Email } from "../../types/email.types";
 import { emailService } from "../../services/email.service";
-import { 
-  useEmailDetailQuery, 
+import {
+  useEmailDetailQuery,
   useStarEmailMutation,
-  useDeleteEmailMutation 
+  useDeleteEmailMutation
 } from "../../hooks/queries/useEmailsQuery";
 import toast from "react-hot-toast";
 import { Sparkles, X } from "lucide-react";
@@ -50,11 +50,11 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false);
 
   // Fetch full email detail when modal opens - ONLY use full content, no preview
-  const { 
-    data: fullEmail, 
+  const {
+    data: fullEmail,
     isLoading: isLoadingDetail,
   } = useEmailDetailQuery(email?.id || null);
-  
+
   // Use mutations for optimistic updates
   const starMutation = useStarEmailMutation();
   const deleteMutation = useDeleteEmailMutation();
@@ -129,7 +129,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
 
   const handleStar = async () => {
     if (!fullEmail) return;
-    
+
     // Use mutation for optimistic update
     starMutation.mutate(
       { emailId: fullEmail.id, starred: !fullEmail.starred },
@@ -163,7 +163,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
 
   const handleConfirmDelete = async () => {
     if (!fullEmail) return;
-    
+
     // Use mutation for proper cache invalidation
     deleteMutation.mutate(fullEmail.id, {
       onSuccess: () => {
@@ -187,23 +187,21 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
       {/* Modal */}
       <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
         <div
-          className={`bg-white rounded-lg shadow-2xl flex flex-col transition-all duration-300 ${
-            isAiSidebarOpen ? "w-[95vw] max-w-[1400px]" : "w-full max-w-5xl"
-          } max-h-[90vh]`}
+          className={`bg-white dark:bg-slate-900 rounded-lg shadow-2xl flex flex-col transition-all duration-300 ${isAiSidebarOpen ? "w-[95vw] max-w-[1400px]" : "w-full max-w-5xl"
+            } max-h-[90vh]`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header with Navigation */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
             <div className="flex items-center gap-2">
               {/* Previous Button */}
               <button
                 onClick={onPrevious}
                 disabled={!canGoPrevious}
-                className={`p-2 rounded-lg transition-colors ${
-                  canGoPrevious
-                    ? "hover:bg-gray-200 text-gray-700"
-                    : "text-gray-300 cursor-not-allowed"
-                }`}
+                className={`p-2 rounded-lg transition-colors ${canGoPrevious
+                  ? "hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200"
+                  : "text-gray-300 dark:text-slate-600 cursor-not-allowed"
+                  }`}
                 title="Previous email (←)"
               >
                 <svg
@@ -225,11 +223,10 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
               <button
                 onClick={onNext}
                 disabled={!canGoNext}
-                className={`p-2 rounded-lg transition-colors ${
-                  canGoNext
-                    ? "hover:bg-gray-200 text-gray-700"
-                    : "text-gray-300 cursor-not-allowed"
-                }`}
+                className={`p-2 rounded-lg transition-colors ${canGoNext
+                  ? "hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200"
+                  : "text-gray-300 dark:text-slate-600 cursor-not-allowed"
+                  }`}
                 title="Next email (→)"
               >
                 <svg
@@ -249,7 +246,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
 
               {/* Email counter */}
               {currentIndex !== undefined && totalEmails !== undefined && (
-                <span className="text-sm text-gray-600 ml-2">
+                <span className="text-sm text-gray-600 dark:text-slate-400 ml-2">
                   {currentIndex + 1} of {totalEmails}
                 </span>
               )}
@@ -260,11 +257,10 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
               {/* Gemini AI Button */}
               <button
                 onClick={() => setIsAiSidebarOpen(!isAiSidebarOpen)}
-                className={`p-2 rounded-lg transition-all ${
-                  isAiSidebarOpen
-                    ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
-                    : "hover:bg-gray-200 text-gray-700 hover:text-purple-600"
-                }`}
+                className={`p-2 rounded-lg transition-all ${isAiSidebarOpen
+                  ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                  : "hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200 hover:text-purple-600 dark:hover:text-purple-400"
+                  }`}
                 title="AI (Powered by Gemini)"
               >
                 <Sparkles className="w-5 h-5" />
@@ -273,7 +269,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
               {/* Close Button */}
               <button
                 onClick={onClose}
-                className="p-2 rounded-lg hover:bg-gray-200 text-gray-700 transition-colors"
+                className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200 transition-colors"
                 title="Close (ESC)"
               >
                 <X className="w-5 h-5" />
@@ -297,7 +293,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
                   onClose={undefined} // Don't show close button in header since we have it in modal header
                 />
 
-                <div className="flex-1 overflow-y-auto bg-gray-50">
+                <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-900/50">
                   <div className="max-w-4xl mx-auto p-4 sm:p-6">
                     {isLoadingDetail || !fullEmail ? (
                       <div className="flex items-center justify-center h-64">
@@ -305,7 +301,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
                       </div>
                     ) : (
                       <>
-                        <h1 className="text-xl sm:text-2xl font-normal text-gray-900 mb-4">
+                        <h1 className="text-xl sm:text-2xl font-normal text-gray-900 dark:text-white mb-4">
                           {fullEmail.subject}
                         </h1>
 
@@ -328,16 +324,15 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
 
               {/* AI Sidebar - Slides in from right */}
               <div
-                className={`transition-all duration-300 ease-in-out overflow-y-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-l-2 border-purple-300 ${
-                  isAiSidebarOpen ? "w-96" : "w-0"
-                }`}
+                className={`transition-all duration-300 ease-in-out overflow-y-auto overflow-x-hidden bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:bg-none dark:bg-slate-900 border-l-2 border-purple-300 dark:border-slate-800 ${isAiSidebarOpen ? "w-96" : "w-0"
+                  }`}
               >
                 {isAiSidebarOpen && (
-                  <div className="w-96 h-full p-4">
-                    <div className="sticky top-0 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 pb-2 mb-4 border-b-2 border-purple-300 z-10">
+                  <div className="w-full h-full p-4">
+                    <div className="sticky top-0 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 dark:bg-none dark:bg-slate-900/95 backdrop-blur-sm pb-2 mb-4 border-b-2 border-purple-300 dark:border-slate-800 z-10 pt-4 -mt-4">
                       <div className="flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-purple-600" />
-                        <h3 className="font-semibold text-gray-800">AI Space</h3>
+                        <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                        <h3 className="font-semibold text-gray-800 dark:text-white">AI Space</h3>
                       </div>
                     </div>
                     {fullEmail && (

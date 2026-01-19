@@ -54,20 +54,20 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
   return (
     <div
-      className={`flex flex-col w-full lg:w-72 lg:flex-shrink-0 bg-gray-50 rounded-lg border border-gray-200 transition-all`}
+      className={`flex flex-col w-full lg:w-72 lg:flex-shrink-0 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-gray-200 dark:border-slate-700 transition-all`}
     >
       {/* Column Header */}
-      <div className="p-4 border-b border-gray-200 bg-white rounded-t-lg">
+      <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-t-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div
               className="w-3 h-3 rounded-full"
               style={{ backgroundColor: column.color || "#6B7280" }}
             />
-            <h3 className="font-semibold text-gray-900">{column.title}</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-slate-100">{column.title}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+            <span className="text-sm text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded-full">
               {cards.length}
             </span>
             {/* Collapse/Expand Button - Only on mobile/tablet */}

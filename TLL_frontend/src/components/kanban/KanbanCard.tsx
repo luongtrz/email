@@ -96,28 +96,26 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
-        isDragging ? "opacity-50 rotate-2" : ""
-      } ${isSelected ? "ring-2 ring-blue-500" : ""} ${
-        !email.read ? "border-l-4 border-l-blue-500" : ""
-      }`}
+      className={`bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${isDragging ? "opacity-50 rotate-2" : ""
+        } ${isSelected ? "ring-2 ring-blue-500" : ""} ${!email.read ? "border-l-4 border-l-blue-500" : ""
+        }`}
       onClick={() => onClick(email)}
     >
       {/* Header with sender and date */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium text-gray-600">
+          <div className="w-6 h-6 bg-gray-300 dark:bg-slate-700 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 dark:text-slate-200">
             {email.from.name.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
+            <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
               {email.from.name}
             </p>
-            <p className="text-xs text-gray-500 truncate">{email.from.email}</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 truncate">{email.from.email}</p>
           </div>
         </div>
         <div className="flex items-center gap-1 ml-2">
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-slate-400">
             {formatDate(email.date)}
           </span>
           {onStar && (
@@ -126,9 +124,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
                 e.stopPropagation();
                 onStar(email.id);
               }}
-              className={`p-1 rounded hover:bg-gray-100 ${
-                email.starred ? "text-yellow-500" : "text-gray-400"
-              }`}
+              className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 ${email.starred ? "text-yellow-500" : "text-gray-400 dark:text-slate-500"
+                }`}
             >
               <Star size={14} fill={email.starred ? "currentColor" : "none"} />
             </button>
@@ -137,24 +134,24 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
       </div>
 
       {/* Subject */}
-      <h3 className="text-sm font-medium text-gray-900 mb-2 line-clamp-2">
+      <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2 line-clamp-2">
         {email.subject}
       </h3>
 
       {/* Snooze Until Badge - Only show if snoozed */}
       {isSnoozed && (
         <div className="flex items-center gap-1 mb-2 px-2 py-1 bg-purple-50 border border-purple-200 rounded-md w-fit">
-          <svg 
-            className="w-3 h-3 text-purple-600" 
-            fill="none" 
-            stroke="currentColor" 
+          <svg
+            className="w-3 h-3 text-purple-600"
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" 
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
           <span className="text-xs font-medium text-purple-700">
@@ -165,14 +162,14 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
 
       {/* Preview - only show if meaningful */}
       {email.preview && email.preview.trim().length > 0 && (
-        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{email.preview}</p>
+        <p className="text-sm text-gray-600 dark:text-slate-400 line-clamp-2 mb-3">{email.preview}</p>
       )}
 
       {/* Footer with attachments and actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {email.attachments && email.attachments.length > 0 && (
-            <div className="flex items-center gap-1 text-xs text-gray-500">
+            <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-slate-500">
               <Paperclip size={12} />
               <span>{email.attachments.length}</span>
             </div>
@@ -182,7 +179,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
               {email.labelIds.slice(0, 2).map((labelId: string) => (
                 <span
                   key={labelId}
-                  className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded"
+                  className="px-2 py-1 text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 rounded"
                 >
                   {labelId}
                 </span>
