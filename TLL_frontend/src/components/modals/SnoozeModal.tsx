@@ -100,99 +100,118 @@ export const SnoozeModal: React.FC<SnoozeModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+      <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full mx-4 border border-gray-200 dark:border-slate-700 transition-all duration-300 ease-in-out ${selectedOption === "custom" ? "max-w-3xl" : "max-w-md"}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
           <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-purple-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Snooze Email</h2>
+            <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Snooze Email</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             disabled={isLoading}
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-3">
-          <p className="text-sm text-gray-600 mb-4">
+        <div className="p-4">
+          <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
             Choose when you want this email to reappear:
           </p>
 
-          {/* Snooze Options */}
-          <div className="space-y-2">
-            {SNOOZE_OPTIONS.map((option) => {
-              const optionKey = option.value || option.label;
-              const isSelected = selectedOption === optionKey;
-              const previewDate =
-                option.value !== "custom"
-                  ? formatDate(calculateSnoozeDate(option))
-                  : null;
+          <div className="flex flex-col md:flex-row gap-4 transition-all duration-300 ease-in-out">
+            {/* Snooze Options */}
+            <div className="flex-1 space-y-2">
+              {SNOOZE_OPTIONS.map((option) => {
+                const optionKey = option.value || option.label;
+                const isSelected = selectedOption === optionKey;
+                const previewDate =
+                  option.value !== "custom"
+                    ? formatDate(calculateSnoozeDate(option))
+                    : null;
 
-              return (
-                <button
-                  key={optionKey}
-                  onClick={() => setSelectedOption(optionKey)}
-                  className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
-                    isSelected
-                      ? "border-purple-500 bg-purple-50"
-                      : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
-                  }`}
-                  disabled={isLoading}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-900">
-                      {option.label}
-                    </span>
-                    {previewDate && (
-                      <span className="text-xs text-gray-500">{previewDate}</span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Custom Date/Time Picker */}
-          {selectedOption === "custom" && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={customDate}
-                  onChange={(e) => setCustomDate(e.target.value)}
-                  min={new Date().toISOString().split("T")[0]}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  disabled={isLoading}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Time
-                </label>
-                <input
-                  type="time"
-                  value={customTime}
-                  onChange={(e) => setCustomTime(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  disabled={isLoading}
-                />
-              </div>
+                return (
+                  <button
+                    key={optionKey}
+                    onClick={() => setSelectedOption(optionKey)}
+                    className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${isSelected
+                      ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-400 shadow-sm ring-1 ring-purple-500 dark:ring-purple-400"
+                      : "border-gray-200 dark:border-slate-700 hover:border-purple-300 dark:hover:border-purple-500/50 hover:bg-gray-50 dark:hover:bg-slate-800"
+                      }`}
+                    disabled={isLoading}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`font-medium ${isSelected ? "text-purple-700 dark:text-purple-300" : "text-gray-900 dark:text-slate-200"}`}>
+                        {option.label}
+                      </span>
+                      {previewDate && (
+                        <span className={`text-xs ${isSelected ? "text-purple-600 dark:text-purple-400" : "text-gray-500 dark:text-slate-500"}`}>{previewDate}</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-          )}
+
+            {/* Custom Date/Time Picker - Right Side */}
+            {selectedOption === "custom" && (
+              <div className="flex-1 min-w-[300px] animate-fade-in-right">
+                <div className="h-full p-5 bg-gray-50 dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner flex flex-col justify-center gap-6">
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-purple-500" />
+                      Set Custom Time
+                    </h3>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">
+                          Select Date
+                        </label>
+                        <input
+                          type="date"
+                          value={customDate}
+                          onChange={(e) => setCustomDate(e.target.value)}
+                          min={new Date().toISOString().split("T")[0]}
+                          className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm"
+                          disabled={isLoading}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">
+                          Select Time
+                        </label>
+                        <input
+                          type="time"
+                          value={customTime}
+                          onChange={(e) => setCustomTime(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm"
+                          disabled={isLoading}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                    <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                      This email will return to your inbox at the specified time. Until then, you can find it in the "Snoozed" folder.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 p-4 border-t border-gray-200">
+        <div className="flex gap-3 p-4 border-t border-gray-200 dark:border-slate-700">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-gray-700"
+            className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium text-gray-700 dark:text-slate-300"
             disabled={isLoading}
           >
             Cancel
