@@ -33,7 +33,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         {onCompose && (
           <button
             onClick={onCompose}
-            className={`mb-6 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 hover:shadow-xl transition-all duration-200 active:scale-95 ${isCollapsed ? "w-12 h-12 rounded-2xl p-0" : "w-full py-3 rounded-xl"
+            className={`mb-6 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-indigo-900/20 hover:shadow-xl transition-all duration-200 active:scale-95 ${isCollapsed ? "w-12 h-12 rounded-2xl p-0" : "w-full py-3 rounded-xl"
               }`}
             title={isCollapsed ? "Compose" : undefined}
           >
@@ -65,33 +65,29 @@ export const FolderList: React.FC<FolderListProps> = ({
                     : "justify-between px-4 py-2.5 rounded-xl"
                   }
                   ${isActive
-                    ? 'bg-indigo-400 text-white shadow-lg shadow-indigo-200 font-medium'
-                    : 'text-gray-600 hover:bg-white hover:shadow-sm hover:text-gray-900'
+                    ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-200 dark:shadow-indigo-900/20 font-medium'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm hover:text-slate-900 dark:hover:text-slate-200'
                   }
                 `}
                 title={isCollapsed ? `${folder.name}${folder.count > 0 ? ` (${folder.count})` : ""}` : undefined}
               >
                 {isCollapsed ? (
                   <div className="relative flex items-center justify-center">
-                    <div className={`${isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'}`}>
+                    <div className={`${isActive ? 'text-white' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200'}`}>
                       {icon}
                     </div>
-                    {folder.count > 0 && (
-                      <span className={`absolute -top-1.5 ${folder.count > 9 ? "-right-3" : "-right-1.5"} text-rose-500 text-xs font-black leading-none`}>
-                        {folder.count > 9 ? "9+" : folder.count}
-                      </span>
-                    )}
+
                   </div>
                 ) : (
                   <>
                     <div className="flex items-center gap-3">
-                      <div className={`${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                      <div className={`${isActive ? 'text-white' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`}>
                         {icon}
                       </div>
                       <span className="tracking-tight">{folder.name}</span>
                     </div>
                     {(folder.count > 0) && (
-                      <span className={`text-xs ${isActive ? 'font-bold text-white/90' : 'font-medium text-gray-400 group-hover:text-gray-600'}`}>
+                      <span className={`text-xs ${isActive ? 'font-bold text-white/90' : 'font-medium text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`}>
                         {folder.count}
                       </span>
                     )}

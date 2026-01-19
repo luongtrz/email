@@ -242,7 +242,7 @@ ${body}
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden relative">
+    <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden relative">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
           <div className="flex flex-col items-center gap-3">

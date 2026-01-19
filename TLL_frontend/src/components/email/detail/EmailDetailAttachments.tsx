@@ -19,7 +19,7 @@ export const EmailDetailAttachments: React.FC<EmailDetailAttachmentsProps> = ({
   }
 
   return (
-    <div className="mb-4 p-3 bg-white border border-gray-200 rounded-lg">
+    <div className="mb-4 p-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
       <div className="flex items-center gap-2 mb-2 text-sm text-gray-700">
         <Paperclip className="w-4 h-4" />
         <span>
@@ -35,7 +35,7 @@ export const EmailDetailAttachments: React.FC<EmailDetailAttachmentsProps> = ({
             className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-sm disabled:opacity-50"
           >
             <Paperclip className="w-4 h-4 text-gray-600" />
-            <span className="text-gray-900 truncate max-w-[200px]">
+            <span className="text-gray-900 dark:text-slate-200 truncate max-w-[200px]">
               {attachment.filename}
             </span>
             <span className="text-gray-500 text-xs">

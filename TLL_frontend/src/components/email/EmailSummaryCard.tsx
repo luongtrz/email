@@ -27,11 +27,12 @@ export const EmailSummaryCard: React.FC<EmailSummaryCardProps> = ({
         <button
           onClick={handleGenerate}
           disabled={generateMutation.isPending}
-          className="flex items-center gap-2 p-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          className="w-full relative group overflow-hidden flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 text-white rounded-lg transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          <Sparkles className={`w-8 h-8 ${generateMutation.isPending ? 'animate-pulse' : ''}`} />
-          <span className="text-xs font-semibold">
-            {generateMutation.isPending ? 'Generating...' : displaySummary ? 'Regenerate Summary' : 'Generate Summary'}
+          <div className="absolute inset-0 bg-white/20 group-hover:translate-x-full transition-transform duration-700 ease-in-out -skew-x-12 -translate-x-full" />
+          <Sparkles className={`w-4 h-4 ${generateMutation.isPending ? 'animate-spin' : ''}`} />
+          <span className="text-sm font-medium tracking-wide">
+            {generateMutation.isPending ? 'Analyzing...' : displaySummary ? 'Regenerate Summary' : 'Generate Summary'}
           </span>
         </button>
       </div>
@@ -44,7 +45,7 @@ export const EmailSummaryCard: React.FC<EmailSummaryCardProps> = ({
               <Sparkles className="w-5 h-5 text-purple-600 animate-pulse" />
               <div className="absolute inset-0 bg-purple-400 blur-lg opacity-50 animate-pulse"></div>
             </div>
-            <p className="text-sm font-semibold text-gray-800">
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
               AI is analyzing this email...
             </p>
           </div>
@@ -73,15 +74,15 @@ export const EmailSummaryCard: React.FC<EmailSummaryCardProps> = ({
 
       {/* Display summary if available */}
       {displaySummary && !generateMutation.isPending && (
-        <div className="bg-white/90 backdrop-blur-sm rounded-lg p-4 border border-purple-200 shadow-sm animate-fade-in">
+        <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg p-4 border border-purple-200 dark:border-slate-700 shadow-sm animate-fade-in">
           <div className="flex items-center gap-2 mb-3 pb-2 border-b border-purple-100">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-xs font-medium text-gray-600">AI Summary</span>
+            <span className="text-xs font-medium text-gray-600 dark:text-slate-400">AI Summary</span>
           </div>
 
           {/* Render HTML summary with custom styling */}
-          <div 
-            className="ai-summary-content text-sm text-gray-700 leading-relaxed"
+          <div
+            className="ai-summary-content text-sm text-gray-700 dark:text-slate-300 leading-relaxed"
             dangerouslySetInnerHTML={{ __html: displaySummary }}
             style={{
               // Custom styles for AI-generated HTML
@@ -89,8 +90,8 @@ export const EmailSummaryCard: React.FC<EmailSummaryCardProps> = ({
             }}
           />
 
-          <div className="mt-3 pt-3 border-t border-purple-100">
-            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+          <div className="mt-3 pt-3 border-t border-purple-100 dark:border-slate-600/50">
+            <p className="text-xs text-gray-500 dark:text-slate-500 flex items-center gap-1.5">
               <Sparkles className="w-3 h-3 text-purple-500" />
               Powered by Google Gemini
             </p>
