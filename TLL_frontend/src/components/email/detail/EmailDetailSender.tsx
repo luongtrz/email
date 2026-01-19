@@ -47,39 +47,39 @@ export const EmailDetailSender: React.FC<EmailDetailSenderProps> = ({ email }) =
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-gray-900">{email.from.name || email.from.email}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{email.from.name || email.from.email}</span>
               </div>
               <button
                 onClick={() => setShowMore(!showMore)}
-                className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mt-0.5"
+                className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 flex items-center gap-1 mt-0.5"
               >
                 <span>to me</span>
                 <ChevronDown className={`w-3 h-3 transition-transform ${showMore ? 'rotate-180' : ''}`} />
               </button>
             </div>
-            <div className="text-sm text-gray-500 whitespace-nowrap">
+            <div className="text-sm text-gray-500 dark:text-slate-400 whitespace-nowrap">
               {formatEmailDate(email.date.toString())}
             </div>
           </div>
 
           {/* Extended Info - Expandable */}
           {showMore && (
-            <div className="mt-3 text-sm text-gray-600 space-y-1.5 bg-gray-50/80 p-3 rounded-lg">
+            <div className="mt-3 text-sm text-gray-600 dark:text-slate-300 space-y-1.5 bg-gray-50/80 dark:bg-slate-800/80 p-3 rounded-lg border border-gray-100 dark:border-slate-700">
               <div>
-                <span className="font-medium text-gray-700">From:</span>{" "}
+                <span className="font-medium text-gray-700 dark:text-slate-200">From:</span>{" "}
                 {email.from.name} &lt;{email.from.email}&gt;
               </div>
               {email.to && email.to.length > 0 && (
                 <div>
-                  <span className="font-medium text-gray-700">To:</span>{" "}
+                  <span className="font-medium text-gray-700 dark:text-slate-200">To:</span>{" "}
                   {Array.isArray(email.to) ? email.to.join(", ") : email.to}
                 </div>
               )}
               <div>
-                <span className="font-medium text-gray-700">Date:</span> {formatFullDate(email.date)}
+                <span className="font-medium text-gray-700 dark:text-slate-200">Date:</span> {formatFullDate(email.date)}
               </div>
               <div>
-                <span className="font-medium text-gray-700">Subject:</span> {email.subject}
+                <span className="font-medium text-gray-700 dark:text-slate-200">Subject:</span> {email.subject}
               </div>
             </div>
           )}

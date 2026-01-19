@@ -75,7 +75,7 @@ export const EmailList: React.FC<EmailListProps> = ({
   }
 
   return (
-    <div ref={listRef} className="h-full overflow-y-auto bg-white">
+    <div ref={listRef} className="h-full overflow-y-auto bg-white dark:bg-slate-900">
       {/* Email List - Clean White Container */}
       <div className="flex flex-col">
         {emails.map((email) => (
