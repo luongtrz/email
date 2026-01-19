@@ -15,15 +15,14 @@ export const ViewToggle: React.FC<ViewToggleProps> = ({ className = "" }) => {
 
   return (
     <div
-      className={`flex items-center bg-gray-100 rounded-lg p-1 ${className}`}
+      className={`flex items-center bg-gray-100 dark:bg-slate-800 rounded-lg p-1 ${className}`}
     >
       <button
         onClick={() => handleToggle("traditional")}
-        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-          viewMode === "traditional"
-            ? "bg-white text-gray-900 shadow-sm"
-            : "text-gray-600 hover:text-gray-900"
-        }`}
+        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === "traditional"
+            ? "bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm"
+            : "text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white"
+          }`}
         title="Traditional List View"
       >
         <List size={16} />
@@ -32,11 +31,10 @@ export const ViewToggle: React.FC<ViewToggleProps> = ({ className = "" }) => {
 
       <button
         onClick={() => handleToggle("kanban")}
-        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-          viewMode === "kanban"
-            ? "bg-white text-gray-900 shadow-sm"
-            : "text-gray-600 hover:text-gray-900"
-        }`}
+        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === "kanban"
+            ? "bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm"
+            : "text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white"
+          }`}
         title="Kanban Board View"
       >
         <Kanban size={16} />

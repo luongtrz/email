@@ -20,7 +20,7 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
     <div className={`flex flex-col items-center justify-center gap-4 p-8 ${className}`}>
       <AlertCircle className="w-12 h-12 text-red-500" />
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{title}</h3>
         <p className="text-sm text-gray-600">{errorMessage}</p>
       </div>
       {retry && (
