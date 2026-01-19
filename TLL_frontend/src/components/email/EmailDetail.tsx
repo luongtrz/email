@@ -14,6 +14,8 @@ interface EmailDetailProps {
   onEmailUpdated?: () => void;
   onReply?: (email: Email) => void;
   onForward?: (email: Email) => void;
+  onToggleAi?: () => void;
+  isAiOpen?: boolean;
 }
 
 export const EmailDetail: React.FC<EmailDetailProps> = ({
@@ -22,6 +24,8 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
   onEmailUpdated,
   onReply,
   onForward,
+  onToggleAi,
+  isAiOpen,
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -123,7 +127,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
   }
 
   return (
-    <div className="h-full w-full flex flex-col bg-white">
+    <div className="flex-1 min-h-0 w-full flex flex-col bg-white">
       <EmailDetailHeader
         email={email}
         isActionLoading={isActionLoading}
@@ -133,11 +137,13 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
         onReply={onReply}
         onForward={onForward}
         onClose={onClose}
+        onToggleAi={onToggleAi}
+        isAiOpen={isAiOpen}
       />
 
-      <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="flex-1 overflow-y-auto bg-white">
         <div className="max-w-4xl mx-auto p-4 sm:p-6">
-          <h1 className="text-xl sm:text-2xl font-normal text-gray-900 mb-4">
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-5">
             {email.subject}
           </h1>
 
