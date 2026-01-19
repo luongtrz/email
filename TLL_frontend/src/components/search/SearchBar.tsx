@@ -197,8 +197,8 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(({
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholder="Search mail (min. 2 characters)... (Ctrl + F to focus)"
-          className="w-full pl-10 pr-10 py-2 bg-gray-100 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+          placeholder="Search mail (min. 2 characters)... (Ctrl + F)"
+          className="w-full pl-10 pr-10 py-2.5 bg-gray-100/80 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all duration-200"
           aria-label="Search emails"
           aria-autocomplete="list"
           aria-controls="search-suggestions"
@@ -210,7 +210,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(({
         {/* Loading Spinner */}
         {isLoading && (
           <div className="absolute right-10 top-1/2 -translate-y-1/2">
-            <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+            <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
           </div>
         )}
 
@@ -219,16 +219,14 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors group flex items-center gap-1"
             title="Clear search (ESC)"
             aria-label="Clear search"
           >
-            <div style={{ display: "inline-flex" }}>
-              <X className="w-5 h-5 pt-1" />
-              <span className="text-[10px] font-bold px-1 py-1 bg-white shadow-sm">
-                ( ESC )
-              </span>
-            </div>
+            <span className="opacity-0 group-hover:opacity-100 text-[10px] font-medium px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded transition-opacity duration-200 hidden sm:inline-block">
+              ESC
+            </span>
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
