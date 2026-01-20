@@ -16,6 +16,7 @@ interface EmailDetailProps {
   onForward?: (email: Email) => void;
   onToggleAi?: () => void;
   isAiOpen?: boolean;
+  currentFolder?: string;
 }
 
 export const EmailDetail: React.FC<EmailDetailProps> = ({
@@ -26,6 +27,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
   onForward,
   onToggleAi,
   isAiOpen,
+  currentFolder,
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -84,13 +86,21 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
     if (!email) return;
     setIsDeleting(true);
     try {
-      await emailService.modifyEmail(email.id, { delete: true });
-      toast.success("Email deleted");
+      const isPermanent = currentFolder === 'trash';
+      await emailService.modifyEmail(email.id, {
+        permanentDelete: isPermanent,
+        delete: !isPermanent
+      });
+      toast.success(
+        isPermanent
+          ? "Email đã bị xóa vĩnh viễn"
+          : "Email đã được chuyển vào Trash"
+      );
       setDeleteModalOpen(false);
       onEmailUpdated?.();
       onClose?.();
     } catch {
-      toast.error("Failed to delete email");
+      toast.error("Không thể xóa email");
     } finally {
       setIsDeleting(false);
     }

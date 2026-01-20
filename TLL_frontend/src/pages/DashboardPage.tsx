@@ -1,4 +1,5 @@
 import {
+  ArchiveRestore,
   ChevronDown,
   LogOut,
   Mail,
@@ -51,6 +52,7 @@ import {
   useMailboxesQuery,
   useMarkEmailReadMutation,
   useMoveEmailMutation,
+  useRestoreEmailMutation,
   useSemanticSearchQuery,
   useStarEmailMutation,
 } from "../hooks/queries/useEmailsQuery";
@@ -175,6 +177,7 @@ export const DashboardPage: React.FC = () => {
   const markReadMutation = useMarkEmailReadMutation();
   const starMutation = useStarEmailMutation();
   const deleteMutation = useDeleteEmailMutation();
+  const restoreMutation = useRestoreEmailMutation();
   const moveMutation = useMoveEmailMutation();
   const updateStatusMutation = useUpdateStatusMutation();
   const restoreSnoozedMutation = useRestoreSnoozedMutation();
@@ -201,10 +204,18 @@ export const DashboardPage: React.FC = () => {
   }, [cachedFolderEmailsRef.current]);
 
   // Extract emails from current view (for display, filtering, etc.)
-  const emails = useMemo(
-    () => emailsData?.pages.flatMap((page) => page.emails) || [],
-    [emailsData]
-  );
+  /* Deduplicate emails to prevent "unique key" errors */
+  const emails = useMemo(() => {
+    const rawEmails = emailsData?.pages.flatMap((page) => page.emails) || [];
+    // Use a Map to keep only unique emails by ID (keeping the first occurrence)
+    const uniqueEmailsMap = new Map();
+    rawEmails.forEach(email => {
+      if (!uniqueEmailsMap.has(email.id)) {
+        uniqueEmailsMap.set(email.id, email);
+      }
+    });
+    return Array.from(uniqueEmailsMap.values());
+  }, [emailsData]);
 
   // Search history management
   const { recentSearches, addSearch, deleteSearch, clearAll } = useSearchHistory();
@@ -432,7 +443,7 @@ export const DashboardPage: React.FC = () => {
     if (isBulkDelete) {
       // Bulk delete
       const promises = Array.from(selectedEmails).map((id) =>
-        deleteMutation.mutateAsync(id)
+        deleteMutation.mutateAsync({ emailId: id, currentFolder: activeFolder })
       );
       await Promise.all(promises);
       setSelectedEmails(new Set());
@@ -441,7 +452,7 @@ export const DashboardPage: React.FC = () => {
       }
     } else if (emailToDelete) {
       // Single delete
-      await deleteMutation.mutateAsync(emailToDelete);
+      await deleteMutation.mutateAsync({ emailId: emailToDelete, currentFolder: activeFolder });
       if (selectedEmail?.id === emailToDelete) {
         setSelectedEmail(null);
       }
@@ -465,14 +476,28 @@ export const DashboardPage: React.FC = () => {
 
     await Promise.all(promises);
     setSelectedEmails(new Set());
-    toast.success(`Marked ${promises.length} emails as read`);
+    toast.success(`Đã đánh dấu ${promises.length} email là đã đọc`);
   }, [selectedEmails, markReadMutation]);
+
+  const handleBulkRestore = useCallback(async () => {
+    if (selectedEmails.size === 0) return;
+
+    const promises = Array.from(selectedEmails).map((id) =>
+      restoreMutation.mutateAsync(id)
+    );
+
+    await Promise.all(promises);
+    setSelectedEmails(new Set());
+    if (selectedEmail && selectedEmails.has(selectedEmail.id)) {
+      setSelectedEmail(null);
+    }
+  }, [selectedEmails, restoreMutation, selectedEmail]);
 
   const handleArchiveEmail = useCallback(
     async (emailId: string) => {
       // Archive = remove from inbox + add ARCHIVED label
       // For now, just delete (move to trash)
-      await deleteMutation.mutateAsync(emailId);
+      await deleteMutation.mutateAsync({ emailId, currentFolder: activeFolder });
       if (selectedEmail?.id === emailId) {
         setSelectedEmail(null);
       }
@@ -797,10 +822,10 @@ export const DashboardPage: React.FC = () => {
       </header>
 
       {/* Main Content - Floating Board Layout */}
-      <div className="flex-1 flex overflow-hidden p-3 gap-3">
+      <div className="flex-1 flex overflow-hidden p-3">
         {/* Sidebar - Desktop (Floating Card) */}
         <div
-          className={`hidden ${viewMode === "kanban" ? "" : "lg:flex"} flex-col bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 dark:border-gray-700/50 transition-all duration-200 ${showSidebar ? "w-56" : "w-16"
+          className={`hidden ${viewMode === "kanban" ? "" : "lg:flex"} flex-col bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 dark:border-gray-700/50 transition-all duration-200 mr-3 ${showSidebar ? "w-56" : "w-16"
             }`}
         >
           <FolderList
@@ -854,13 +879,23 @@ export const DashboardPage: React.FC = () => {
                   <span className="text-sm font-medium text-blue-900">
                     {selectedEmails.size} selected
                   </span>
-                  <button
-                    onClick={handleMarkBulkAsRead}
-                    className="p-2 hover:bg-blue-100 rounded transition-colors"
-                    title="Mark as read"
-                  >
-                    <MailOpen className="w-5 h-5 text-blue-700" />
-                  </button>
+                  {activeFolder === 'trash' ? (
+                    <button
+                      onClick={handleBulkRestore}
+                      className="p-2 hover:bg-blue-100 rounded transition-colors"
+                      title="Khôi phục"
+                    >
+                      <ArchiveRestore className="w-5 h-5 text-blue-700" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleMarkBulkAsRead}
+                      className="p-2 hover:bg-blue-100 rounded transition-colors"
+                      title="Mark as read"
+                    >
+                      <MailOpen className="w-5 h-5 text-blue-700" />
+                    </button>
+                  )}
                   <button
                     onClick={handleBulkDelete}
                     className="p-2 hover:bg-blue-100 rounded transition-colors"
@@ -949,16 +984,21 @@ export const DashboardPage: React.FC = () => {
               </div>
 
               {/* Invisible Resize Handle - Visible on Hover */}
-              <div
-                className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-20 bg-gray-300 hover:bg-gray-400 transition-colors"
-                onMouseDown={handleEmailListMouseDown}
-              />
+
+            </div>
+
+            {/* Visible Resize Handle - Gutter */}
+            <div
+              className="w-3 cursor-col-resize hover:bg-blue-50/50 active:bg-blue-100 transition-colors bg-transparent flex flex-col items-center justify-center gap-1 group/handle z-50 flex-shrink-0"
+              onMouseDown={handleEmailListMouseDown}
+            >
+              <div className="w-1 h-8 bg-gray-200 rounded-full group-hover/handle:bg-blue-400 transition-all duration-200" />
             </div>
 
             {/* Email Detail (Floating Card) */}
             {/* Email Detail & AI Wrapper (Transparent container for layout) */}
             <div
-              className={`flex-1 flex gap-3 overflow-hidden min-w-0 bg-transparent ${!showMobileDetail && "hidden lg:flex"
+              className={`flex-1 flex overflow-hidden min-w-0 bg-transparent ${!showMobileDetail && "hidden lg:flex"
                 }`}
             >
               {/* Main Email Detail Content (Floating Card) */}
@@ -983,6 +1023,7 @@ export const DashboardPage: React.FC = () => {
                     onClose={handleBackToList}
                     onToggleAi={() => setIsAiSidebarOpen(!isAiSidebarOpen)}
                     isAiOpen={isAiSidebarOpen}
+                    currentFolder={activeFolder}
                   />
                 ) : (
                   <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
@@ -996,35 +1037,41 @@ export const DashboardPage: React.FC = () => {
 
               {/* AI Summary Panel - Right Side (Floating Card) */}
               {isAiSidebarOpen && selectedEmail && (
-                <div
-                  className="relative flex-shrink-0 overflow-y-auto bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-sm border border-white/50 dark:border-gray-700/50 group ms-1"
-                  style={{ width: aiPanelWidth }}
-                >
-                  {/* Invisible Resize Handle - Left Edge */}
+                <>
+                  {/* AI Panel Resize Handle - Gutter */}
                   <div
-                    className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize z-20 bg-gray-300 hover:bg-gray-400 transition-colors"
+                    className="w-3 cursor-col-resize hover:bg-blue-50/50 active:bg-blue-100 transition-colors bg-transparent flex flex-col items-center justify-center gap-1 group/handle z-50 flex-shrink-0"
                     onMouseDown={handleAiPanelMouseDown}
-                  />
+                  >
+                    <div className="w-1 h-8 bg-gray-200 rounded-full group-hover/handle:bg-blue-400 transition-all duration-200" />
+                  </div>
 
-                  {/* AI Panel Header */}
-                  <div className="sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 px-5 py-4 flex items-center justify-between z-10 transition-colors">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1 rounded-md bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
-                        <Sparkles className="w-4 h-4" />
+                  <div
+                    className="relative flex-shrink-0 overflow-y-auto bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-sm border border-white/50 dark:border-gray-700/50 group ms-1"
+                    style={{ width: aiPanelWidth }}
+                  >
+
+
+                    {/* AI Panel Header */}
+                    <div className="sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 px-5 py-4 flex items-center justify-between z-10 transition-colors">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1 rounded-md bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                          <Sparkles className="w-4 h-4" />
+                        </div>
+                        <h3 className="font-semibold text-gray-900 dark:text-white tracking-tight text-sm">AI Insights</h3>
                       </div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white tracking-tight text-sm">AI Insights</h3>
+                      <button
+                        onClick={() => setIsAiSidebarOpen(false)}
+                        className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setIsAiSidebarOpen(false)}
-                      className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    <div className="p-5">
+                      <EmailSummaryCard emailId={selectedEmail.id} summary={selectedEmail.aiSummary} />
+                    </div>
                   </div>
-                  <div className="p-5">
-                    <EmailSummaryCard emailId={selectedEmail.id} summary={selectedEmail.aiSummary} />
-                  </div>
-                </div>
+                </>
               )}
             </div>
           </>

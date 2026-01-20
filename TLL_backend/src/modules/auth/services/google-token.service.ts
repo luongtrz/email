@@ -228,7 +228,7 @@ export class GoogleTokenService {
     return this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: googleConfig.scopes,
-      prompt: 'consent', // Force consent to get refresh token
+      prompt: 'select_account consent', // Force account selection and consent to get new refresh token with updated scopes
       state: state || undefined,
     });
   }
