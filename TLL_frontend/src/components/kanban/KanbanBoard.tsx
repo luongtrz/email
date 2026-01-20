@@ -192,13 +192,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             <Filter className="w-4 h-4 text-gray-500" />
             <select
               value={filterMode}
-              onChange={(e) => setFilterMode(e.target.value as "ALL" | "UNREAD" | "STARRED" | "HAS_ATTACHMENT")}
+              onChange={(e) => setFilterMode(e.target.value as "ALL" | "UNREAD" | "STARRED")}
               className="px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 dark:text-slate-200 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
             >
               <option value="ALL">All Emails</option>
               <option value="UNREAD">Unread Only</option>
               <option value="STARRED">Starred Only</option>
-              <option value="HAS_ATTACHMENT">Has Attachment</option>
             </select>
           </div>
 
@@ -222,11 +221,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
               {filterMode === "UNREAD" && <MailOpen className="w-3 h-3" />}
               {filterMode === "STARRED" && <Star className="w-3 h-3" />}
-              {filterMode === "HAS_ATTACHMENT" && <Paperclip className="w-3 h-3" />}
               <span>
                 {filterMode === "UNREAD" && "Unread"}
                 {filterMode === "STARRED" && "Starred"}
-                {filterMode === "HAS_ATTACHMENT" && "Attachments"}
               </span>
             </div>
           )}
@@ -237,7 +234,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           {/* Settings Button */}
           <button
             onClick={() => setShowSettingsModal(true)}
-            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="p-2 text-gray-600 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
             title="Configure Columns"
           >
             <Settings className="w-5 h-5" />

@@ -57,13 +57,12 @@ export const useKanbanEmailsQuery = (folder: string, search: string, limit = 20)
  * Fetch ALL Kanban columns data using column IDs
  * Use this for Kanban board view to populate all columns at once
  * Supports pagination with incremental load more (only fetches new pages)
+ * FIXED: Now properly accumulates emails instead of replacing them
  */
 export const useAllKanbanColumnsQuery = (
   columns: { id: string; status: KanbanEmailStatusType }[],
   limit = 20
 ) => {
-  const queryClient = useQueryClient();
-
   // Ensure columns is always an array to prevent undefined errors
   const safeColumns = columns || [];
 
@@ -76,54 +75,23 @@ export const useAllKanbanColumnsQuery = (
     return initial;
   });
 
+  // Use ref to accumulate emails across page loads
+  // This ensures emails are preserved when query key changes
+  const accumulatedEmailsRef = React.useRef<Record<string, any[]>>({});
+
   // Fetch all columns in parallel using columnId (if UUID) or status (for legacy columns)
-  // Use useQueries to avoid hook order violations
+  // Query key does NOT include page number - we manage pagination manually
   const queries = useQueries({
     queries: safeColumns.map((column) => ({
-      queryKey: [...kanbanKeys.all, "column", column.id, pages[column.id] || 1],
+      // Query key without page - prevents refetching all data when page changes
+      queryKey: [...kanbanKeys.all, "column", column.id],
       queryFn: async () => {
         const currentPage = pages[column.id] || 1;
 
-        // Get existing data from previous page (page - 1)
-        const previousPageData = currentPage > 1
-          ? queryClient.getQueryData<{
-            columnId: string;
-            emails: any[];
-            total: number;
-            currentPage: number;
-            hasMore: boolean;
-          }>([...kanbanKeys.all, "column", column.id, currentPage - 1])
-          : null;
-
-        // If loading page > 1, fetch only the new page and append
-        if (previousPageData && currentPage > 1) {
-          // Fetch only the new page using status from localStorage
-          const newPageResult = await kanbanService.getKanbanEmails({
-            status: column.status,
-            page: currentPage,
-            limit
-          });
-
-          const total = typeof newPageResult.pagination.total === 'number'
-            ? newPageResult.pagination.total
-            : 0;
-
-          // Append new emails to existing ones
-          const allEmails = [...previousPageData.emails, ...newPageResult.emails];
-
-          return {
-            columnId: column.id,
-            emails: allEmails,
-            total,
-            currentPage,
-            hasMore: allEmails.length < total,
-          };
-        }
-
-        // Initial load (page 1) - fetch only first page using status from localStorage
+        // Fetch the current page
         const result = await kanbanService.getKanbanEmails({
           status: column.status,
-          page: 1,
+          page: currentPage,
           limit
         });
 
@@ -131,20 +99,53 @@ export const useAllKanbanColumnsQuery = (
           ? result.pagination.total
           : 0;
 
+        // If this is page 1, reset accumulated emails
+        // If page > 1, append to accumulated emails
+        if (currentPage === 1) {
+          accumulatedEmailsRef.current[column.id] = result.emails;
+        } else {
+          // Get existing emails and append new ones
+          const existingEmails = accumulatedEmailsRef.current[column.id] || [];
+          // Filter out duplicates by email ID
+          const newEmails = result.emails.filter(
+            (newEmail: any) => !existingEmails.some((existing: any) => existing.id === newEmail.id)
+          );
+          accumulatedEmailsRef.current[column.id] = [...existingEmails, ...newEmails];
+        }
+
+        const allEmails = accumulatedEmailsRef.current[column.id] || [];
+
         return {
           columnId: column.id,
-          emails: result.emails,
+          emails: allEmails,
           total,
-          currentPage: 1,
-          hasMore: result.emails.length < total,
+          currentPage,
+          hasMore: allEmails.length < total,
         };
       },
       staleTime: 5 * 60 * 1000, // 5 minutes
       refetchOnWindowFocus: false,
+      // Enable refetch when pages change (this is the key fix)
+      // We use a custom hook to trigger refetch when page changes
     })),
   });
 
-  // Load more function - increments page for ALL columns
+  // Effect to trigger refetch when pages change
+  React.useEffect(() => {
+    // Check if any page > 1, which means load more was triggered
+    const hasPageChange = Object.values(pages).some(p => p > 1);
+    if (hasPageChange) {
+      // Refetch queries for columns that have page > 1
+      queries.forEach((query, index) => {
+        const column = safeColumns[index];
+        if (column && pages[column.id] > 1) {
+          query.refetch();
+        }
+      });
+    }
+  }, [pages]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load more function - increments page for columns that have more data
   const loadMore = React.useCallback(() => {
     if (!queries || queries.length === 0) return;
 
@@ -163,6 +164,7 @@ export const useAllKanbanColumnsQuery = (
 
   // Combine results - now keyed by columnId instead of status
   const isLoading = queries?.some((q) => q.isLoading) ?? true;
+  const isFetchingMore = queries?.some((q) => q.isFetching && !q.isLoading) ?? false;
   const isError = queries?.some((q) => q.isError) ?? false;
   const allEmails = queries?.flatMap((q) => q.data?.emails || []) ?? [];
   const columnData = queries?.reduce((acc, q) => {
@@ -180,12 +182,24 @@ export const useAllKanbanColumnsQuery = (
 
   return {
     isLoading,
+    isFetchingMore,
     isError,
     allEmails,
     columnData,
     loadMore,
     hasMore: hasMoreAny,
-    refetch: () => queries.forEach((q) => q.refetch()),
+    refetch: () => {
+      // Reset accumulated emails and pages when refetching
+      accumulatedEmailsRef.current = {};
+      setPages(() => {
+        const initial: Record<string, number> = {};
+        safeColumns.forEach((col) => {
+          initial[col.id] = 1;
+        });
+        return initial;
+      });
+      queries.forEach((q) => q.refetch());
+    },
   };
 };
 
