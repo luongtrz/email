@@ -1,4 +1,4 @@
-import { Archive, Trash2, Star, ChevronLeft, Reply, Forward, MoreHorizontal, Sparkles } from "lucide-react";
+import { Archive, Trash2, Star, ChevronLeft, Reply, Forward, MoreHorizontal, Sparkles, ExternalLink } from "lucide-react";
 import type { Email } from "../../../types/email.types";
 
 interface EmailDetailHeaderProps {
@@ -13,6 +13,11 @@ interface EmailDetailHeaderProps {
   onToggleAi?: () => void;
   isAiOpen?: boolean;
 }
+
+// Helper function to generate Gmail URL
+const getGmailUrl = (emailId: string) => {
+  return `https://mail.google.com/mail/u/0/#inbox/${emailId}`;
+};
 
 export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
   email,
@@ -101,6 +106,17 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
           </button>
 
           <div className="w-px h-5 bg-gray-200 mx-1" />
+
+          {/* Open in Gmail */}
+          <a
+            href={getGmailUrl(email.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            title="Open in Gmail"
+          >
+            <ExternalLink className="w-5 h-5 text-gray-600 dark:text-slate-400" />
+          </a>
 
           {/* More Options */}
           <button

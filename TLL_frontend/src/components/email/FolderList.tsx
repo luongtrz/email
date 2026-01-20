@@ -1,5 +1,5 @@
 import React from 'react';
-import { Inbox, Send, Star, Archive, Trash2, Mail, Plus } from 'lucide-react';
+import { Inbox, Send, Star, Archive, Trash2, Mail, Plus, Paperclip } from 'lucide-react';
 import type { Folder } from '../../types/email.types';
 
 const FOLDER_ICONS: Record<string, React.ReactNode> = {
@@ -8,6 +8,7 @@ const FOLDER_ICONS: Record<string, React.ReactNode> = {
   starred: <Star className="w-5 h-5" />,
   archive: <Archive className="w-5 h-5" />,
   trash: <Trash2 className="w-5 h-5" />,
+  has_attachment: <Paperclip className="w-5 h-5" />,
   default: <Mail className="w-5 h-5" />,
 };
 
