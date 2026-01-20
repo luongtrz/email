@@ -52,4 +52,12 @@ export class ModifyEmailDto {
   @IsBoolean()
   @IsOptional()
   unstar?: boolean;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Restore email from trash (untrash)',
+  })
+  @IsBoolean()
+  @IsOptional()
+  restore?: boolean;
 }

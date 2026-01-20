@@ -262,7 +262,7 @@ export const useStarEmailMutation = () => {
       // Cancel all outgoing refetches for emails and kanban
       await queryClient.cancelQueries({ queryKey: emailKeys.all });
       await queryClient.cancelQueries({ queryKey: ["kanban"] });
-      
+
       // Snapshot previous values
       const previousEmails = queryClient.getQueriesData({
         queryKey: emailKeys.lists(),
@@ -321,7 +321,7 @@ export const useStarEmailMutation = () => {
     onSuccess: (data) => {
       // Only invalidate mailbox counts (not emails themselves - optimistic update is enough)
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
-      
+
       // Don't invalidate immediately - trust optimistic update
       // Queries will refetch naturally when they become stale
       toast.success(data.starred ? "Email starred" : "Email unstarred");
@@ -337,22 +337,90 @@ export const useStarEmailMutation = () => {
 };
 
 /**
- * Delete email (move to trash)
+ * Delete email (move to trash or permanently delete if already in trash) with optimistic updates
  */
 export const useDeleteEmailMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (emailId: string) =>
-      emailService.modifyEmail(emailId, { delete: true }),
-    onSuccess: () => {
+    mutationFn: ({ emailId, currentFolder }: { emailId: string; currentFolder: string }) => {
+      // If email is already in Trash, permanently delete it
+      const isPermanent = currentFolder === 'trash';
+      return emailService.modifyEmail(emailId, {
+        permanentDelete: isPermanent,
+        delete: !isPermanent
+      });
+    },
+    onMutate: async ({ emailId }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: emailKeys.all });
+      await queryClient.cancelQueries({ queryKey: ["kanban"] });
+
+      // Snapshot previous values
+      const previousEmails = queryClient.getQueriesData({
+        queryKey: emailKeys.lists(),
+      });
+      const previousKanban = queryClient.getQueriesData({
+        queryKey: ["kanban"],
+      });
+
+      // Optimistically remove email from list
+      queryClient.setQueriesData<{
+        pages: Array<{ emails: Email[]; pagination: Record<string, unknown> }>;
+      }>({ queryKey: emailKeys.lists() }, (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            emails: page.emails.filter((email) => email.id !== emailId),
+          })),
+        };
+      });
+
+      // Optimistically remove from Kanban column queries
+      queryClient.setQueriesData<{
+        status: string;
+        emails: Email[];
+        total: number;
+      }>({ queryKey: ["kanban", "column"] }, (old) => {
+        if (!old?.emails) return old;
+        return {
+          ...old,
+          emails: old.emails.filter((email) => email.id !== emailId),
+          total: old.total - 1,
+        };
+      });
+
+      return { previousEmails, previousKanban };
+    },
+    onError: (_err, _variables, context) => {
+      // Rollback on error
+      if (context?.previousEmails) {
+        context.previousEmails.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      if (context?.previousKanban) {
+        context.previousKanban.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      toast.error("Khong the xoa email");
+    },
+    onSuccess: (_data, variables) => {
+      const isPermanent = variables.currentFolder === 'trash';
+      toast.success(
+        isPermanent
+          ? "Email da bi xoa vinh vien"
+          : "Email da duoc chuyen vao Trash"
+      );
+    },
+    onSettled: () => {
+      // Invalidate to ensure eventual consistency
       queryClient.invalidateQueries({ queryKey: emailKeys.all });
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
       queryClient.invalidateQueries({ queryKey: ["kanban"] });
-      toast.success("Email moved to trash");
-    },
-    onError: () => {
-      toast.error("Failed to delete email");
     },
   });
 };
@@ -392,9 +460,9 @@ export const useMoveEmailMutation = () => {
             emails: page.emails.map((email) =>
               email.id === emailId
                 ? {
-                    ...email,
-                    folder: folder as Email["folder"],
-                  }
+                  ...email,
+                  folder: folder as Email["folder"],
+                }
                 : email
             ),
           })),
@@ -415,6 +483,84 @@ export const useMoveEmailMutation = () => {
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
       queryClient.invalidateQueries({ queryKey: ["kanban"] });
       toast.success("Email moved successfully");
+    },
+  });
+};
+
+/**
+ * Restore email from trash (untrash) with optimistic updates
+ */
+export const useRestoreEmailMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (emailId: string) =>
+      emailService.modifyEmail(emailId, { restore: true }),
+    onMutate: async (emailId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: emailKeys.all });
+      await queryClient.cancelQueries({ queryKey: ["kanban"] });
+
+      // Snapshot previous values
+      const previousEmails = queryClient.getQueriesData({
+        queryKey: emailKeys.lists(),
+      });
+      const previousKanban = queryClient.getQueriesData({
+        queryKey: ["kanban"],
+      });
+
+      // Optimistically remove email from Trash list
+      queryClient.setQueriesData<{
+        pages: Array<{ emails: Email[]; pagination: Record<string, unknown> }>;
+      }>({ queryKey: emailKeys.lists() }, (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            emails: page.emails.filter((email) => email.id !== emailId),
+          })),
+        };
+      });
+
+      // Optimistically remove from Kanban column queries
+      queryClient.setQueriesData<{
+        status: string;
+        emails: Email[];
+        total: number;
+      }>({ queryKey: ["kanban", "column"] }, (old) => {
+        if (!old?.emails) return old;
+        return {
+          ...old,
+          emails: old.emails.filter((email) => email.id !== emailId),
+          total: old.total - 1,
+        };
+      });
+
+      return { previousEmails, previousKanban };
+    },
+    onError: (_err, _variables, context) => {
+      // Rollback on error
+      if (context?.previousEmails) {
+        context.previousEmails.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      if (context?.previousKanban) {
+        context.previousKanban.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      toast.error("Không thể khôi phục email");
+    },
+    onSuccess: () => {
+      toast.success("Email đã được khôi phục");
+    },
+    onSettled: () => {
+      // Invalidate to ensure eventual consistency
+      queryClient.invalidateQueries({ queryKey: emailKeys.all });
+      queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
+      queryClient.invalidateQueries({ queryKey: ["kanban"] });
     },
   });
 };

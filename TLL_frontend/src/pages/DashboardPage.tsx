@@ -1,4 +1,5 @@
 import {
+  ArchiveRestore,
   ChevronDown,
   LogOut,
   Mail,
@@ -51,6 +52,7 @@ import {
   useMailboxesQuery,
   useMarkEmailReadMutation,
   useMoveEmailMutation,
+  useRestoreEmailMutation,
   useSemanticSearchQuery,
   useStarEmailMutation,
 } from "../hooks/queries/useEmailsQuery";
@@ -175,6 +177,7 @@ export const DashboardPage: React.FC = () => {
   const markReadMutation = useMarkEmailReadMutation();
   const starMutation = useStarEmailMutation();
   const deleteMutation = useDeleteEmailMutation();
+  const restoreMutation = useRestoreEmailMutation();
   const moveMutation = useMoveEmailMutation();
   const updateStatusMutation = useUpdateStatusMutation();
   const restoreSnoozedMutation = useRestoreSnoozedMutation();
@@ -440,7 +443,7 @@ export const DashboardPage: React.FC = () => {
     if (isBulkDelete) {
       // Bulk delete
       const promises = Array.from(selectedEmails).map((id) =>
-        deleteMutation.mutateAsync(id)
+        deleteMutation.mutateAsync({ emailId: id, currentFolder: activeFolder })
       );
       await Promise.all(promises);
       setSelectedEmails(new Set());
@@ -449,7 +452,7 @@ export const DashboardPage: React.FC = () => {
       }
     } else if (emailToDelete) {
       // Single delete
-      await deleteMutation.mutateAsync(emailToDelete);
+      await deleteMutation.mutateAsync({ emailId: emailToDelete, currentFolder: activeFolder });
       if (selectedEmail?.id === emailToDelete) {
         setSelectedEmail(null);
       }
@@ -473,14 +476,28 @@ export const DashboardPage: React.FC = () => {
 
     await Promise.all(promises);
     setSelectedEmails(new Set());
-    toast.success(`Marked ${promises.length} emails as read`);
+    toast.success(`Đã đánh dấu ${promises.length} email là đã đọc`);
   }, [selectedEmails, markReadMutation]);
+
+  const handleBulkRestore = useCallback(async () => {
+    if (selectedEmails.size === 0) return;
+
+    const promises = Array.from(selectedEmails).map((id) =>
+      restoreMutation.mutateAsync(id)
+    );
+
+    await Promise.all(promises);
+    setSelectedEmails(new Set());
+    if (selectedEmail && selectedEmails.has(selectedEmail.id)) {
+      setSelectedEmail(null);
+    }
+  }, [selectedEmails, restoreMutation, selectedEmail]);
 
   const handleArchiveEmail = useCallback(
     async (emailId: string) => {
       // Archive = remove from inbox + add ARCHIVED label
       // For now, just delete (move to trash)
-      await deleteMutation.mutateAsync(emailId);
+      await deleteMutation.mutateAsync({ emailId, currentFolder: activeFolder });
       if (selectedEmail?.id === emailId) {
         setSelectedEmail(null);
       }
@@ -862,13 +879,23 @@ export const DashboardPage: React.FC = () => {
                   <span className="text-sm font-medium text-blue-900">
                     {selectedEmails.size} selected
                   </span>
-                  <button
-                    onClick={handleMarkBulkAsRead}
-                    className="p-2 hover:bg-blue-100 rounded transition-colors"
-                    title="Mark as read"
-                  >
-                    <MailOpen className="w-5 h-5 text-blue-700" />
-                  </button>
+                  {activeFolder === 'trash' ? (
+                    <button
+                      onClick={handleBulkRestore}
+                      className="p-2 hover:bg-blue-100 rounded transition-colors"
+                      title="Khôi phục"
+                    >
+                      <ArchiveRestore className="w-5 h-5 text-blue-700" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleMarkBulkAsRead}
+                      className="p-2 hover:bg-blue-100 rounded transition-colors"
+                      title="Mark as read"
+                    >
+                      <MailOpen className="w-5 h-5 text-blue-700" />
+                    </button>
+                  )}
                   <button
                     onClick={handleBulkDelete}
                     className="p-2 hover:bg-blue-100 rounded transition-colors"
@@ -996,6 +1023,7 @@ export const DashboardPage: React.FC = () => {
                     onClose={handleBackToList}
                     onToggleAi={() => setIsAiSidebarOpen(!isAiSidebarOpen)}
                     isAiOpen={isAiSidebarOpen}
+                    currentFolder={activeFolder}
                   />
                 ) : (
                   <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
