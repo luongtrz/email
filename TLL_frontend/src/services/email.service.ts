@@ -8,8 +8,20 @@ export const emailService = {
   // Get all mailboxes with counts
   getMailboxes: async (): Promise<Folder[]> => {
     const response = await apiClient.get(API_ENDPOINTS.EMAILS.MAILBOXES);
-    // Backend returns array directly
-    return response.data;
+    const mailboxes = response.data;
+
+    // Manually add Attachments folder (frontend-only logic)
+    // Check if it already exists to avoid duplication
+    if (!mailboxes.find((m: Folder) => m.id === 'has_attachment')) {
+      mailboxes.push({
+        id: 'has_attachment',
+        name: 'Attachments',
+        icon: 'paperclip',
+        count: 0
+      });
+    }
+
+    return mailboxes;
   },
 
   // Get emails with filters
@@ -21,20 +33,29 @@ export const emailService = {
     autoSync?: boolean; // Auto-sync emails with embeddings
   }): Promise<{ emails: Email[]; pagination: Record<string, unknown> }> => {
     const params: Record<string, unknown> = {};
-    if (filters?.search) params.search = filters.search;
+    let search = filters?.search;
+    const isAttachmentFolder = filters?.folder === 'has_attachment';
+
+    if (search) params.search = search;
+
+    // Handle "Attachments" folder by converting to search query
+    if (isAttachmentFolder) {
+      params.search = search ? `${search} has:attachment` : 'has:attachment';
+    }
+
     if (filters?.page) params.page = filters.page;
     if (filters?.limit) params.limit = filters.limit;
     if (filters?.autoSync !== undefined) params.autoSync = filters.autoSync;
 
     let response;
-    if (filters?.folder) {
-      // Use folder-specific endpoint
+    if (filters?.folder && !isAttachmentFolder) {
+      // Use folder-specific endpoint (except for virtual has_attachment folder)
       response = await apiClient.get(
         API_ENDPOINTS.EMAILS.EMAILS_BY_FOLDER(filters.folder),
         { params }
       );
     } else {
-      // Use general list endpoint
+      // Use general list endpoint (for Inbox, All Mail, or virtual folders converted to search)
       response = await apiClient.get(API_ENDPOINTS.EMAILS.LIST, { params });
     }
 
@@ -131,11 +152,11 @@ export const emailService = {
 
   // Download attachment
   downloadAttachment: async (
-    messageId: string,
-    attachmentId: string
+    attachmentId: string,
+    messageId: string
   ): Promise<Blob> => {
     const response = await apiClient.get(
-      API_ENDPOINTS.EMAILS.ATTACHMENT(attachmentId, messageId),
+      API_ENDPOINTS.EMAILS.ATTACHMENT(encodeURIComponent(attachmentId), messageId),
       { responseType: "blob" }
     );
     return response.data;
@@ -154,16 +175,32 @@ export const emailService = {
     // Backend returns: { sender: "Name <email>", ... }
     // Frontend expects: { from: { name, email }, ... }
     const emails = (response.data.emails || []).map((email: any) => {
-      // Parse sender string: "Name <email@example.com>" or " <email@example.com>"
-      const senderMatch = email.sender?.match(/^(.*?)\s*<(.+?)>$/);
-      const name = senderMatch ? senderMatch[1].trim() : "";
-      const emailAddr = senderMatch ? senderMatch[2].trim() : email.sender || "";
+      // Parse sender string: "Name <email@example.com>" or " <email@example.com>" or malformed
+      let name = "";
+      let emailAddr = "";
+
+      const senderStr = (email.sender || "").trim();
+
+      if (senderStr) {
+        const senderMatch = senderStr.match(/^(.*?)\s*<(.+?)>$/);
+        if (senderMatch && senderMatch[2]) {
+          // Format: "Name <email>" or " <email>"
+          name = senderMatch[1].trim();
+          emailAddr = senderMatch[2].trim();
+        } else {
+          // No angle brackets or malformed, treat entire string as email/name
+          emailAddr = senderStr.replace(/[<>]/g, '').trim();
+        }
+      }
+
+      // Fallback: extract username from email if name is empty
+      const displayName = name || (emailAddr ? emailAddr.split('@')[0] : 'Nguoi gui khong xac dinh');
 
       return {
         id: email.id,
         from: {
-          name: name || emailAddr.split('@')[0], // Fallback to email username if no name
-          email: emailAddr,
+          name: displayName,
+          email: emailAddr || 'unknown@email.com',
         },
         to: [], // Search endpoint doesn't return 'to' field
         subject: email.subject || "",

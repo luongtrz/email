@@ -27,23 +27,27 @@ export const EmailDetailAttachments: React.FC<EmailDetailAttachmentsProps> = ({
         </span>
       </div>
       <div className="flex flex-wrap gap-2">
-        {attachments.map((attachment, idx) => (
-          <button
-            key={idx}
-            onClick={() => onDownload(attachment.id || "", attachment.filename)}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-sm disabled:opacity-50"
-          >
-            <Paperclip className="w-4 h-4 text-gray-600" />
-            <span className="text-gray-900 dark:text-slate-200 truncate max-w-[200px]">
-              {attachment.filename}
-            </span>
-            <span className="text-gray-500 text-xs">
-              {typeof attachment.size === 'number' ? formatFileSize(attachment.size) : attachment.size}
-            </span>
-            <Download className="w-3 h-3 text-gray-400" />
-          </button>
-        ))}
+        {attachments.map((attachment: any, idx) => {
+          // Handle both 'filename' and 'name' fields from backend
+          const fileName = attachment.filename || attachment.name || "attachment";
+          return (
+            <button
+              key={idx}
+              onClick={() => onDownload(attachment.id || "", fileName)}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-sm disabled:opacity-50"
+            >
+              <Paperclip className="w-4 h-4 text-gray-600" />
+              <span className="text-gray-900 dark:text-slate-200 truncate max-w-[200px]">
+                {fileName}
+              </span>
+              <span className="text-gray-500 text-xs">
+                {typeof attachment.size === 'number' ? formatFileSize(attachment.size) : attachment.size}
+              </span>
+              <Download className="w-3 h-3 text-gray-400" />
+            </button>
+          );
+        })}
       </div>
     </div>
   );

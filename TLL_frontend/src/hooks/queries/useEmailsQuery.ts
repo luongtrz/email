@@ -108,11 +108,25 @@ export const useSemanticSearchQuery = (
   return useInfiniteQuery({
     queryKey: emailKeys.semanticSearch(query),
     queryFn: async ({ pageParam: _pageParam = 1 }) => {
-      const result = await emailService.semanticSearch(query, {
-        limit,
-        minSimilarity,
-      });
-      return result;
+      try {
+        const result = await emailService.semanticSearch(query, {
+          limit,
+          minSimilarity,
+        });
+        return result;
+      } catch (error) {
+        // Return empty result on error to prevent UI crash
+        console.error('[SemanticSearch] Error:', error);
+        return {
+          emails: [],
+          pagination: {
+            total: 0,
+            page: 1,
+            limit,
+            totalPages: 0,
+          },
+        };
+      }
     },
     getNextPageParam: (lastPage) => {
       // Semantic search currently doesn't support pagination
@@ -125,7 +139,9 @@ export const useSemanticSearchQuery = (
     },
     initialPageParam: 1,
     enabled: !!query && query.length >= 3, // Only search if query has at least 3 characters
-    staleTime: 30000, // Cache search results for 30 seconds
+    staleTime: 60000, // Cache search results for 60 seconds
+    retry: false, // Don't retry on error
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
   });
 };
 

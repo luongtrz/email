@@ -1118,7 +1118,7 @@ export const DashboardPage: React.FC = () => {
                 onEmailMove={handleEmailMove}
                 selectedEmailId={selectedEmail?.id || null}
                 onLoadMore={kanbanData.hasMore ? kanbanData.loadMore : undefined}
-                isLoadingMore={kanbanData.isLoading}
+                isLoadingMore={kanbanData.isFetchingMore}
               />
             )}
           </div>

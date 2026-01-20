@@ -42,7 +42,7 @@ export const EmailSummaryCard: React.FC<EmailSummaryCardProps> = ({
         <div className="space-y-3 animate-fade-in">
           <div className="flex items-center gap-2 justify-center">
             <div className="relative">
-              <Sparkles className="w-5 h-5 text-purple-600 animate-pulse" />
+              <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400 animate-pulse" />
               <div className="absolute inset-0 bg-purple-400 blur-lg opacity-50 animate-pulse"></div>
             </div>
             <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
@@ -51,20 +51,20 @@ export const EmailSummaryCard: React.FC<EmailSummaryCardProps> = ({
           </div>
           {/* Skeleton loader */}
           <div className="space-y-2">
-            <div className="h-3 bg-gradient-to-r from-purple-200 via-purple-100 to-purple-200 rounded animate-shimmer bg-[length:200%_100%]"></div>
-            <div className="h-3 bg-gradient-to-r from-purple-200 via-purple-100 to-purple-200 rounded animate-shimmer bg-[length:200%_100%]" style={{ animationDelay: '0.1s' }}></div>
-            <div className="h-3 bg-gradient-to-r from-purple-200 via-purple-100 to-purple-200 rounded animate-shimmer bg-[length:200%_100%] w-3/4" style={{ animationDelay: '0.2s' }}></div>
+            <div className="h-3 bg-gradient-to-r from-purple-200 via-purple-100 to-purple-200 dark:from-purple-900/50 dark:via-purple-800/30 dark:to-purple-900/50 rounded animate-shimmer bg-[length:200%_100%]"></div>
+            <div className="h-3 bg-gradient-to-r from-purple-200 via-purple-100 to-purple-200 dark:from-purple-900/50 dark:via-purple-800/30 dark:to-purple-900/50 rounded animate-shimmer bg-[length:200%_100%]" style={{ animationDelay: '0.1s' }}></div>
+            <div className="h-3 bg-gradient-to-r from-purple-200 via-purple-100 to-purple-200 dark:from-purple-900/50 dark:via-purple-800/30 dark:to-purple-900/50 rounded animate-shimmer bg-[length:200%_100%] w-3/4" style={{ animationDelay: '0.2s' }}></div>
           </div>
         </div>
       )}
 
       {/* Error state */}
       {generateMutation.isError && (
-        <div className="bg-red-50 rounded-lg p-4 border border-red-200 animate-fade-in">
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-200 dark:border-red-800/50 animate-fade-in">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-red-900">
+              <p className="text-sm font-medium text-red-900 dark:text-red-300">
                 Failed to generate summary. Please try again.
               </p>
             </div>
@@ -74,15 +74,15 @@ export const EmailSummaryCard: React.FC<EmailSummaryCardProps> = ({
 
       {/* Display summary if available */}
       {displaySummary && !generateMutation.isPending && (
-        <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg p-4 border border-purple-200 dark:border-slate-700 shadow-sm animate-fade-in">
-          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-purple-100">
+        <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-purple-200 dark:border-slate-700 shadow-sm animate-fade-in">
+          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-purple-100 dark:border-slate-600/50">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span className="text-xs font-medium text-gray-600 dark:text-slate-400">AI Summary</span>
           </div>
 
           {/* Render HTML summary with custom styling */}
           <div
-            className="ai-summary-content text-sm text-gray-700 dark:text-slate-300 leading-relaxed"
+            className="ai-summary-content text-sm text-gray-700 dark:text-slate-200 leading-relaxed"
             dangerouslySetInnerHTML={{ __html: displaySummary }}
             style={{
               // Custom styles for AI-generated HTML
@@ -92,7 +92,7 @@ export const EmailSummaryCard: React.FC<EmailSummaryCardProps> = ({
 
           <div className="mt-3 pt-3 border-t border-purple-100 dark:border-slate-600/50">
             <p className="text-xs text-gray-500 dark:text-slate-500 flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-purple-500" />
+              <Sparkles className="w-3 h-3 text-purple-500 dark:text-purple-400" />
               Powered by Google Gemini
             </p>
           </div>
