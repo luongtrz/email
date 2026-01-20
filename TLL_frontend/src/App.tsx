@@ -28,73 +28,73 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-        <BrowserRouter>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#fff',
-              color: '#363636',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-              borderRadius: '12px',
-              padding: '16px',
-            },
-            success: {
-              iconTheme: {
-                primary: '#10b981',
-                secondary: '#fff',
-              },
-            },
-            error: {
-              iconTheme: {
-                primary: '#ef4444',
-                secondary: '#fff',
-              },
-            },
-          }}
-        />
-        <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <LoadingSpinner size="lg" text="Loading..." />
-          </div>
-        }>
-          <Routes>
-          {/* Public Routes */}
-          <Route
-            path={ROUTES.LOGIN}
-            element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path={ROUTES.REGISTER}
-            element={
-              <PublicRoute>
-                <RegisterPage />
-              </PublicRoute>
-            }
-          />
+          <BrowserRouter>
+            <Toaster
+              position="bottom-right"
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  background: '#fff',
+                  color: '#363636',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                },
+                success: {
+                  iconTheme: {
+                    primary: '#10b981',
+                    secondary: '#fff',
+                  },
+                },
+                error: {
+                  iconTheme: {
+                    primary: '#ef4444',
+                    secondary: '#fff',
+                  },
+                },
+              }}
+            />
+            <Suspense fallback={
+              <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <LoadingSpinner size="lg" text="Loading..." />
+              </div>
+            }>
+              <Routes>
+                {/* Public Routes */}
+                <Route
+                  path={ROUTES.LOGIN}
+                  element={
+                    <PublicRoute>
+                      <LoginPage />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path={ROUTES.REGISTER}
+                  element={
+                    <PublicRoute>
+                      <RegisterPage />
+                    </PublicRoute>
+                  }
+                />
 
-          {/* Google OAuth Callback */}
-          <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
+                {/* Google OAuth Callback */}
+                <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
 
-          {/* Protected Routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route path={ROUTES.INBOX} element={<DashboardPage />} />
-            <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
-          </Route>
+                {/* Protected Routes */}
+                <Route element={<ProtectedRoute />}>
+                  <Route path={ROUTES.INBOX} element={<DashboardPage />} />
+                  <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+                </Route>
 
-          {/* Default Route */}
-          <Route path="/" element={<Navigate to={ROUTES.INBOX} replace />} />
-          <Route path="*" element={<Navigate to={ROUTES.INBOX} replace />} />
-        </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </GoogleOAuthProvider>
-    </QueryClientProvider>
+                {/* Default Route */}
+                <Route path="/" element={<Navigate to={ROUTES.INBOX} replace />} />
+                <Route path="*" element={<Navigate to={ROUTES.INBOX} replace />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </GoogleOAuthProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

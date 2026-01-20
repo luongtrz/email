@@ -44,18 +44,18 @@ export function LabelSelector({
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-        <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-        <span className="text-sm text-gray-500">Loading labels...</span>
+      <div className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-800">
+        <Loader2 className="w-4 h-4 animate-spin text-gray-400 dark:text-slate-500" />
+        <span className="text-sm text-gray-500 dark:text-slate-400">Loading labels...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 border border-red-300 rounded-lg bg-red-50">
-        <AlertCircle className="w-4 h-4 text-red-500" />
-        <span className="text-sm text-red-600">{error}</span>
+      <div className="flex items-center gap-2 px-3 py-2 border border-red-300 dark:border-red-800/50 rounded-lg bg-red-50 dark:bg-red-900/20">
+        <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
+        <span className="text-sm text-red-600 dark:text-red-300">{error}</span>
       </div>
     );
   }
@@ -119,9 +119,9 @@ export function LabelSelector({
                 className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-gray-300" />
+                  <div className="w-3 h-3 rounded-full bg-gray-300 dark:bg-slate-600" />
                   <span className="text-gray-700 dark:text-slate-200">No label</span>
-                  <span className="text-xs text-gray-500">(status-only)</span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400">(status-only)</span>
                 </div>
                 {selectedLabelId === null && (
                   <Check className="w-4 h-4 text-blue-600" />
@@ -195,7 +195,7 @@ export function LabelSelector({
 
               {/* Empty State */}
               {userLabels.length === 0 && systemLabels.length === 0 && (
-                <div className="px-3 py-8 text-center text-sm text-gray-500">
+                <div className="px-3 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
                   {searchQuery ? 'No labels found' : 'No labels available'}
                 </div>
               )}

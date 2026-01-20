@@ -141,22 +141,25 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
     );
   };
 
-  const handleDownloadAttachment = async (attachmentId: string) => {
+  const handleDownloadAttachment = async (attachmentId: string, filename?: string) => {
+    console.log('[Download] attachmentId:', attachmentId, 'filename:', filename, 'emailId:', fullEmail?.id);
     if (!fullEmail) return;
     try {
       const blob = await emailService.downloadAttachment(
         attachmentId,
         fullEmail.id
       );
+      console.log('[Download] Blob received:', blob.size, 'bytes', blob.type);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = attachmentId;
+      a.download = filename || "attachment";
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch {
+    } catch (error) {
+      console.error('[Download Error]', error);
       toast.error("Failed to download attachment");
     }
   };
@@ -165,7 +168,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
     if (!fullEmail) return;
 
     // Use mutation for proper cache invalidation
-    deleteMutation.mutate(fullEmail.id, {
+    deleteMutation.mutate({ emailId: fullEmail.id, currentFolder: 'inbox' }, {
       onSuccess: () => {
         setDeleteModalOpen(false);
         onEmailUpdated?.();
@@ -324,20 +327,21 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
 
               {/* AI Sidebar - Slides in from right */}
               <div
-                className={`transition-all duration-300 ease-in-out overflow-y-auto overflow-x-hidden bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:bg-none dark:bg-slate-900 border-l-2 border-purple-300 dark:border-slate-800 ${isAiSidebarOpen ? "w-96" : "w-0"
-                  }`}
+                className={`ai-sidebar-container transition-all duration-300 ease-in-out overflow-y-auto overflow-x-hidden border-l-2 border-purple-300 dark:border-slate-700 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 ${isAiSidebarOpen ? "w-96" : "w-0"}`}
               >
                 {isAiSidebarOpen && (
-                  <div className="w-full h-full p-4">
-                    <div className="sticky top-0 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 dark:bg-none dark:bg-slate-900/95 backdrop-blur-sm pb-2 mb-4 border-b-2 border-purple-300 dark:border-slate-800 z-10 pt-4 -mt-4">
+                  <div className="w-full h-full dark:bg-slate-900 flex flex-col">
+                    <div className="sticky top-0 bg-white/90 dark:bg-slate-900 backdrop-blur-sm border-b-2 border-purple-200 dark:border-slate-700 z-10 px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                         <h3 className="font-semibold text-gray-800 dark:text-white">AI Space</h3>
                       </div>
                     </div>
-                    {fullEmail && (
-                      <EmailSummaryCard emailId={fullEmail.id} summary={fullEmail.aiSummary} />
-                    )}
+                    <div className="p-4">
+                      {fullEmail && (
+                        <EmailSummaryCard emailId={fullEmail.id} summary={fullEmail.aiSummary} />
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
