@@ -65,7 +65,6 @@ export const emailService = {
     }
   },
 
-  // Modify email (mark read/unread, star, archive, delete)
   modifyEmail: async (
     id: string,
     action: {
@@ -75,6 +74,8 @@ export const emailService = {
       unstar?: boolean;
       archive?: boolean;
       delete?: boolean;
+      permanentDelete?: boolean;
+      restore?: boolean;
       moveToFolder?: string; // New: move email to different folder
     }
   ): Promise<void> => {

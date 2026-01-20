@@ -41,7 +41,7 @@ export class EmailsService {
     private gmailApiService: GmailApiService,
     private gmailParserService: GmailParserService,
     private emailContentService: EmailContentService,
-  ) {}
+  ) { }
 
   async getMailboxes(userId: string) {
     // Standard mailboxes
@@ -240,6 +240,7 @@ export class EmailsService {
       archive,
       delete: moveToTrash,
       permanentDelete,
+      restore,
     } = dto;
 
     // Handle permanent delete first (cannot be undone)
@@ -256,6 +257,25 @@ export class EmailsService {
         }
         throw new BadRequestException(
           'Failed to delete email: ' + error.message,
+        );
+      }
+    }
+
+    // Handle restore from trash (untrash)
+    if (restore) {
+      try {
+        const result = await this.gmailApiService.untrashMessage(userId, emailId);
+        return {
+          message: 'Email restored from trash',
+          messageId: result.id,
+          labelIds: result.labelIds,
+        };
+      } catch (error) {
+        if (error.status === 404) {
+          throw new NotFoundException('Email not found');
+        }
+        throw new BadRequestException(
+          'Failed to restore email: ' + error.message,
         );
       }
     }
@@ -420,9 +440,8 @@ ${dto.body}
 
 <br/><br/>
 <div style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 10px; color: #666;">
-  <p>On ${new Date(originalEmail.date).toLocaleString()}, ${
-        originalEmail.from.name
-      } &lt;${originalEmail.from.email}&gt; wrote:</p>
+  <p>On ${new Date(originalEmail.date).toLocaleString()}, ${originalEmail.from.name
+        } &lt;${originalEmail.from.email}&gt; wrote:</p>
   ${originalEmail.body}
 </div>
       `.trim();
@@ -478,17 +497,15 @@ ${dto.body || ''}
 <br/><br/>
 <div style="border-top: 1px solid #ccc; padding-top: 10px; margin-top: 10px;">
   <p><strong>---------- Forwarded message ----------</strong></p>
-  <p><strong>From:</strong> ${originalEmail.from.name} &lt;${
-        originalEmail.from.email
-      }&gt;</p>
+  <p><strong>From:</strong> ${originalEmail.from.name} &lt;${originalEmail.from.email
+        }&gt;</p>
   <p><strong>Date:</strong> ${new Date(originalEmail.date).toLocaleString()}</p>
   <p><strong>Subject:</strong> ${originalEmail.subject}</p>
   <p><strong>To:</strong> ${originalEmail.to.join(', ')}</p>
-  ${
-    originalEmail.cc?.length > 0
-      ? `<p><strong>Cc:</strong> ${originalEmail.cc.join(', ')}</p>`
-      : ''
-  }
+  ${originalEmail.cc?.length > 0
+          ? `<p><strong>Cc:</strong> ${originalEmail.cc.join(', ')}</p>`
+          : ''
+        }
   <br/>
   ${originalEmail.body}
 </div>

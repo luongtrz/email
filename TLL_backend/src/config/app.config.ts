@@ -25,9 +25,7 @@ export default registerAs('app', () => ({
     scopes: process.env.GOOGLE_OAUTH_SCOPES?.split(',') || [
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/gmail.readonly',
-      'https://www.googleapis.com/auth/gmail.modify',
-      'https://www.googleapis.com/auth/gmail.send',
+      'https://mail.google.com/', // Full Gmail access (includes read, modify, send, and permanent delete)
     ],
   },
   gemini: {
