@@ -32,8 +32,8 @@ export const useKeyboardShortcuts = (shortcuts: KeyboardShortcuts) => {
         shortcuts.createEmail?.();
       }
 
-      // Ctrl/Cmd + F: Focus search
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
+      // Ctrl/Cmd + /: Focus search (changed from F to avoid conflict with Forward)
+      if ((event.ctrlKey || event.metaKey) && event.key === "/") {
         event.preventDefault();
         shortcuts.searchFocus?.();
       }
