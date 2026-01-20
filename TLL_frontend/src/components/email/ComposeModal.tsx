@@ -29,15 +29,14 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
   const initialSubject = replyTo
     ? `Re: ${replyTo.subject}`
     : forwardEmail
-    ? `Fwd: ${forwardEmail.subject}`
-    : "";
+      ? `Fwd: ${forwardEmail.subject}`
+      : "";
   const initialBody = replyTo
-    ? `\n\n---\nOn ${new Date().toLocaleDateString()}, ${
-        replyTo.from.name
-      } wrote:\n${replyTo.body}`
+    ? `\n\n---\nOn ${new Date().toLocaleDateString()}, ${replyTo.from.name
+    } wrote:\n${replyTo.body}`
     : forwardEmail
-    ? `\n\n\nForwarded message:\n${forwardEmail.body}`
-    : "";
+      ? `\n\n\nForwarded message:\n${forwardEmail.body}`
+      : "";
 
   const {
     to,
@@ -67,15 +66,14 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]">
       <div
-        className={`bg-white rounded-lg shadow-2xl w-full transition-all duration-200 ${
-          isMinimized ? "max-w-md h-16" : "max-w-3xl max-h-[90vh]"
-        } flex flex-col`}
+        className={`bg-white dark:bg-slate-900 rounded-lg shadow-2xl w-full transition-all duration-200 border border-gray-200 dark:border-slate-700 ${isMinimized ? "max-w-md h-16" : "max-w-3xl max-h-[90vh]"
+          } flex flex-col`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 rounded-t-lg">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {replyTo ? "Reply" : forwardEmail ? "Forward" : "New Message"}
           </h2>
           <div className="flex items-center gap-2">
@@ -84,16 +82,16 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               {isMinimized ? (
-                <Maximize2 className="w-5 h-5 text-gray-600" />
+                <Maximize2 className="w-5 h-5 text-gray-600 dark:text-slate-400" />
               ) : (
-                <Minus className="w-5 h-5 text-gray-600" />
+                <Minus className="w-5 h-5 text-gray-600 dark:text-slate-400" />
               )}
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
-              <X className="w-5 h-5 text-gray-600" />
+              <X className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
           </div>
         </div>
@@ -106,7 +104,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700 w-16">
+                  <label className="text-sm font-medium text-gray-700 dark:text-slate-300 w-16">
                     To:
                   </label>
                   <input
@@ -114,20 +112,20 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
                     multiple
                     value={to}
                     onChange={(e) => setTo(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="recipient@example.com"
                   />
                   <button
                     type="button"
                     onClick={() => setShowCc(!showCc)}
-                    className="text-sm text-blue-600 hover:underline"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     Cc
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowBcc(!showBcc)}
-                    className="text-sm text-blue-600 hover:underline"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     Bcc
                   </button>
@@ -136,7 +134,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
 
               {showCc && (
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700 w-16">
+                  <label className="text-sm font-medium text-gray-700 dark:text-slate-300 w-16">
                     Cc:
                   </label>
                   <input
@@ -144,7 +142,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
                     multiple
                     value={cc}
                     onChange={(e) => setCc(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="cc@example.com"
                   />
                 </div>
@@ -152,7 +150,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
 
               {showBcc && (
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700 w-16">
+                  <label className="text-sm font-medium text-gray-700 dark:text-slate-300 w-16">
                     Bcc:
                   </label>
                   <input
@@ -160,21 +158,21 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
                     multiple
                     value={bcc}
                     onChange={(e) => setBcc(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="bcc@example.com"
                   />
                 </div>
               )}
 
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700 w-16">
+                <label className="text-sm font-medium text-gray-700 dark:text-slate-300 w-16">
                   Subject:
                 </label>
                 <input
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Subject"
                 />
               </div>
@@ -183,17 +181,17 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
                 <textarea
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
-                  className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full h-64 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   placeholder="Write your message..."
                 />
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-800">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
               >
                 Discard
               </button>

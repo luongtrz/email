@@ -16,6 +16,7 @@ body {
   line-height: 1.6;
 }
 
+
 .ai-summary-content p {
   margin-bottom: 0.75rem;
 }
@@ -26,7 +27,7 @@ body {
 
 .ai-summary-content strong {
   font-weight: 600;
-  color: #1f2937;
+  color: inherit;
 }
 
 .ai-summary-content ul {
@@ -37,7 +38,6 @@ body {
 
 .ai-summary-content li {
   margin-bottom: 0.375rem;
-  color: #374151;
 }
 
 .ai-summary-content li:last-child {
@@ -59,3 +59,6 @@ body {
 .ai-summary-content div:last-child {
   margin-bottom: 0;
 }
+
+/* Dark Mode Overrides */
+/* Dark Mode Overrides removed - relying on inheritance from parent class */

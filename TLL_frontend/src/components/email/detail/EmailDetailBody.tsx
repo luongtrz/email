@@ -13,12 +13,12 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body }) => {
   const wrappedHTML = React.useMemo(() => {
     // Detect if body is already a complete HTML document
     const isCompleteHTML = /<!DOCTYPE/i.test(body) || /<html[^>]*>/i.test(body);
-    
+
     // If already complete HTML document, enhance it with safety measures
     if (isCompleteHTML) {
       // Inject base tag if missing (for relative URLs) and meta tags for safety
       let enhancedHTML = body;
-      
+
       // Add base tag after <head> if not present (prevents relative URL issues)
       if (!/<base\s/i.test(body)) {
         enhancedHTML = enhancedHTML.replace(
@@ -26,7 +26,7 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body }) => {
           '$1\n<base href="about:blank" target="_blank">'
         );
       }
-      
+
       // Ensure charset is specified
       if (!/<meta[^>]+charset/i.test(body)) {
         enhancedHTML = enhancedHTML.replace(
@@ -34,13 +34,13 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body }) => {
           '$1\n<meta charset="UTF-8">'
         );
       }
-      
+
       return enhancedHTML;
     }
-    
+
     // Otherwise, detect if plain text or HTML fragment
     const isPlainText = !/<[^>]+>/.test(body);
-    
+
     // Wrap partial HTML or plain text in complete document with comprehensive protection
     return `<!DOCTYPE html>
 <html lang="en">
@@ -149,10 +149,10 @@ ${body}
         const iframeDoc = iframe.contentWindow!.document;
         const body = iframeDoc.body;
         const html = iframeDoc.documentElement;
-        
+
         // Force reflow
         void body.offsetHeight;
-        
+
         // Get maximum height from all possible sources
         const heights = [
           body.scrollHeight,
@@ -162,15 +162,15 @@ ${body}
           html.offsetHeight,
           html.clientHeight,
         ];
-        
+
         // Find max content in tables (common in emails)
         const tables = iframeDoc.querySelectorAll('table');
         tables.forEach(table => {
           heights.push((table as HTMLElement).scrollHeight);
         });
-        
+
         const maxHeight = Math.max(...heights, 400); // Min 400px
-        
+
         if (maxHeight > 0 && maxHeight < 50000) { // Max 50000px safety
           iframe.style.height = `${maxHeight + 40}px`;
         }
@@ -242,7 +242,7 @@ ${body}
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden relative">
+    <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden relative">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
           <div className="flex flex-col items-center gap-3">
@@ -251,7 +251,7 @@ ${body}
           </div>
         </div>
       )}
-      
+
       {/* Gmail-style iframe with comprehensive isolation and error handling */}
       <iframe
         ref={iframeRef}
