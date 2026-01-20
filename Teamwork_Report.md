@@ -100,25 +100,65 @@ GitHub repo URL: https://github.com/htloc0610/TLL_backend
 |  | Docker | (Planned) |
 |  | CI/CD | (Planned) |
 
-# **GIT HISTORY & COLLABORATION**
+# **COLLABORATION REPORT**
 
-**Methodology:** Feature Branch Workflow (`feat/*`, `fix/*`, `main`). PR reviews for all merges.
+## **1. Methodology**
+Our team adopted a **Feature Branch Workflow** to ensure code stability and streamline collaboration. This approach allowed multiple developers to work on different features or bug fixes simultaneously without disrupting the main codebase.
 
-## **Contributors**
-| User | Commits | Est. Add/Del |
-| :--- | :--- | :--- |
-| luongtrz | 34 | +5000 / -2000 |
-| htloc0610 | 6 | +3000 / -1000 |
-| Tondeptrai23 | 11 | +1000 / -500 |
+### **Key Practices:**
+*   **Branching Strategy:**
+    *   `main`: The stable production-ready branch.
+    *   `mail`: The primary development branch for the email module.
+    *   `feat/*`: Feature-specific branches (e.g., `feat/dark` for Dark Mode, `feat/search` for Search functionality).
+    *   `fix/*`: Bug fix branches (e.g., `fix/bug`, `fix/kanban`).
+    *   `responsive`: Dedicated usage for UI responsiveness improvements.
+*   **Pull Requests (PRs):** All changes were reviewed and merged via Pull Requests (e.g., #6, #7, #8, #9, #10) to maintain code quality.
+*   **Commit Messages:** We followed reliable commit message conventions (e.g., `feat:`, `fix:`, `style:`, `chore:`) to generate a clear and readable history.
 
-## **Recent Commits**
-| Date | Author | Message |
-| :--- | :--- | :--- |
-| 2026-01-20 | luongtrz | docs: Add Teamwork Collaboration Report |
-| 2026-01-20 | Trần Lượng | fix(core): Resolve Attachment download and Data integration bugs |
-| 2026-01-20 | luongtrz | fix(kanban): Fix Load More logic and Filter issues |
-| 2026-01-20 | luongtrz | feat(search): Optimize search and add utility features |
-| 2026-01-20 | luongtrz | style(ui): Enhance Dark Mode support and UI layout |
+## **2. Git Workflow Evidence**
+
+The following Git Graph illustrates our parallel development process. Major integration points occur via Merge Pull Request commits, joining feature branches like `responsive`, `fix/bug`, and `feat/dark` into the main line (`mail`/`main`).
+
+```text
+* e8a5b19 - (HEAD -> mail, origin/mail) docs: Remove grades from Teamwork Report - luongtrz
+* d5f31d0 - docs: Update Teamwork Report with concise Self-Assessment content - luongtrz
+* a84578b - docs: Add Final Project Self-Assessment Report - luongtrz
+* 7420af3 - docs: Add Teamwork Collaboration Report - luongtrz
+*   605cdac - Merge pull request #6 from htloc0610/doc - Trần Lượng
+|\  
+| * 424a7b8 - doc: add ai summary section - Tondeptrai23
+| * a4a10d1 - doc: add final project document - Tondeptrai23
+* |   41ff4bc - (origin/main) Merge pull request #10 from htloc0610/fix/bug - Trần Lượng
+|\ \  
+| * | bf9be3b - (origin/fix/bug) fix(core): Resolve Attachment download and Data integration bugs - luongtrz
+| * | 10c7709 - fix(kanban): Fix Load More logic and Filter issues - luongtrz
+| * | c3ea92f - feat(search): Optimize search and add utility features - luongtrz
+| * | f028bd3 - style(ui): Enhance Dark Mode support and UI layout - luongtrz
+|/ /  
+* |   60365a5 - Merge pull request #9 from htloc0610/responsive - Trần Lượng
+|\ \  
+| | | * a029817 - chore: cleanup redundant root files after main merge - luongtrz
+| | | * de7bfcf - Merge branch 'main' into responsive - luongtrz
+| | |/| 
+| |/| | 
+| | | * f028c98 - (main) Update README.md with new repository URL for cloning - Huynh Tan Loc
+| | | * 6a24097 - Initialize NestJS Student API project with essential configurations and structure - Huynh Tan Loc
+| * | d35ff4b - feat(email): enhance trash management functionality - luongtrz
+| * | c40f94b - feat(ui): Responsive Layout & UI Improvements - luongtrz
+|/ /  
+* |   10ac778 - Merge pull request #7 from htloc0610/update/UImail - Trần Lượng
+|\ \  
+| |/  
+|/|   
+```
+*(Please compare this graph with GitHub Network Graph for full verification)*
+
+## **3. Contributors & Statistics**
+| User | Commits | Est. Add/Del | Role |
+| :--- | :--- | :--- | :--- |
+| **luongtrz** | 34 | +5000 / -2000 | Frontend Lead, Core Features |
+| **htloc0610** | 6 | +3000 / -1000 | Backend Lead, API & Services |
+| **Tondeptrai23** | 11 | +1000 / -500 | Documentation & QA |
 
 # **PROJECT SUMMARY**
 
