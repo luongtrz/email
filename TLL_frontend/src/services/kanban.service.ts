@@ -85,7 +85,7 @@ export const kanbanService = {
         body: item.snippet, // Use snippet as body initially
         date: new Date(item.date),
         read: !item.isUnread,
-        starred: false, // Backend doesn't return this yet
+        starred: item.starred || false, // Now using actual API value
         folder: 'inbox', // Default folder
         attachments: item.hasAttachment ? [] : undefined,
         status: item.status,

@@ -342,6 +342,7 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
         updatedAt: metadataMap.get(email.id)?.updatedAt || new Date(),
         date: email.date,
         isUnread: email.read === false,
+        starred: email.starred || false,
         hasAttachment: email.attachments && email.attachments.length > 0,
       }));
 
@@ -467,6 +468,7 @@ Important: Return ONLY the HTML content without any markdown code blocks or back
         updatedAt: metadataMap.get(email.id)?.updatedAt || new Date(),
         date: email.date,
         isUnread: email.read === false,
+        starred: email.starred || false,
         hasAttachment: email.attachments && email.attachments.length > 0,
       }));
 
