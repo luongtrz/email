@@ -44,14 +44,14 @@ export function SearchSuggestions({
 
         {/* Empty State Dropdown */}
         <div
-          className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
+          className="absolute z-20 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden"
           role="listbox"
           id="search-suggestions"
         >
           <div className="py-8 px-4 text-center">
             <SearchIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-600 font-medium">No suggestions found</p>
-            <p className="text-xs text-gray-400 mt-1">Try a different search term</p>
+            <p className="text-sm text-gray-600 dark:text-slate-300 font-medium">No suggestions found</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Try a different search term</p>
           </div>
         </div>
       </>
@@ -73,15 +73,15 @@ export function SearchSuggestions({
 
       {/* Dropdown */}
       <div
-        className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto"
+        className="absolute z-20 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto"
         role="listbox"
         id="search-suggestions"
       >
         {/* Recent Searches Section */}
         {hasHistory && (
-          <div className="border-b border-gray-100">
-            <div className="px-3 py-2 bg-gray-50">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          <div className="border-b border-gray-100 dark:border-slate-700">
+            <div className="px-3 py-2 bg-gray-50 dark:bg-slate-700/50">
+              <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">
                 Recent Searches
               </p>
             </div>
@@ -98,12 +98,12 @@ export function SearchSuggestions({
                       e.preventDefault();
                       onHistorySelect?.(item.query);
                     }}
-                    className={`w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2 transition-colors group ${isSelected ? "bg-blue-50" : ""
+                    className={`w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors group ${isSelected ? "bg-blue-50 dark:bg-blue-900/30" : ""
                       }`}
                     type="button"
                   >
                     <History className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <span className="text-sm text-gray-700 flex-1 truncate">
+                    <span className="text-sm text-gray-700 dark:text-slate-200 flex-1 truncate">
                       {item.query}
                     </span>
                     {/* Delete button - using span to avoid nested button */}
@@ -113,7 +113,7 @@ export function SearchSuggestions({
                         e.preventDefault();
                         onDeleteHistory?.(item.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-opacity cursor-pointer"
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-slate-600 rounded transition-opacity cursor-pointer"
                       title="Remove from history"
                       aria-label={`Remove "${item.query}" from history`}
                       role="button"
@@ -128,13 +128,13 @@ export function SearchSuggestions({
 
             {/* Clear All History Button */}
             {onClearAllHistory && (
-              <div className="px-4 py-2 border-t border-gray-100">
+              <div className="px-4 py-2 border-t border-gray-100 dark:border-slate-700">
                 <button
                   onMouseDown={(e) => {
                     e.preventDefault();
                     onClearAllHistory();
                   }}
-                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                   type="button"
                 >
                   Clear All History
@@ -162,7 +162,7 @@ export function SearchSuggestions({
                     e.preventDefault();
                     onSelect(suggestion);
                   }}
-                  className={`w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2 transition-colors ${isSelected ? "bg-blue-50" : ""
+                  className={`w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors ${isSelected ? "bg-blue-50 dark:bg-blue-900/30" : ""
                     }`}
                   type="button"
                 >
@@ -177,17 +177,17 @@ export function SearchSuggestions({
                   <div className="flex-1 flex items-center gap-2 min-w-0">
                     {/* Fuzzy match indicator */}
                     {suggestion.matchType === "fuzzy" && (
-                      <span className="text-xs text-blue-600 font-medium flex-shrink-0 pt-[2px]">
+                      <span className="text-xs text-blue-600 dark:text-blue-400 font-medium flex-shrink-0 pt-[2px]">
                         Did you mean:
                       </span>
                     )}
-                    <span className="text-sm text-gray-900 truncate">
+                    <span className="text-sm text-gray-900 dark:text-slate-200 truncate">
                       {highlightMatch(suggestion.text, query)}
                     </span>
                   </div>
 
                   {/* Type badge */}
-                  <span className="text-xs text-gray-500 capitalize flex-shrink-0">
+                  <span className="text-xs text-gray-500 dark:text-slate-500 capitalize flex-shrink-0">
                     {suggestion.type}
                   </span>
                 </button>
@@ -197,8 +197,8 @@ export function SearchSuggestions({
         )}
 
         {/* Footer hint */}
-        <div className="border-t border-gray-200 px-4 py-2 bg-gray-50">
-          <p className="text-xs text-gray-500">
+        <div className="border-t border-gray-200 dark:border-slate-700 px-4 py-2 bg-gray-50 dark:bg-slate-800">
+          <p className="text-xs text-gray-500 dark:text-slate-400">
             Use ↑↓ to navigate, Enter to search
           </p>
         </div>
@@ -229,7 +229,7 @@ function highlightMatch(text: string, query: string): ReactNode {
     return (
       <>
         {text.slice(0, index)}
-        <strong className="font-semibold text-blue-600">
+        <strong className="font-semibold text-blue-600 dark:text-blue-400">
           {text.slice(index, index + sanitizedQuery.length)}
         </strong>
         {text.slice(index + sanitizedQuery.length)}

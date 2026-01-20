@@ -145,15 +145,15 @@ export function ColumnEditorModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {isEditMode ? 'Edit Column' : 'Add Column'}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 rounded transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -163,7 +163,7 @@ export function ColumnEditorModal({
         <div className="p-4 space-y-4">
           {/* Title */}
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Title <span className="text-red-500">*</span>
             </label>
             <input
@@ -173,18 +173,18 @@ export function ColumnEditorModal({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Urgent, Waiting for Reply"
               maxLength={50}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.title ? 'border-red-300' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 dark:text-white ${errors.title ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-slate-600'
                 }`}
             />
             {errors.title && (
-              <p className="mt-1 text-xs text-red-600">{errors.title}</p>
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.title}</p>
             )}
-            <p className="mt-1 text-xs text-gray-500">{title.length}/50 characters</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{title.length}/50 characters</p>
           </div>
 
           {/* Status */}
           <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Status <span className="text-red-500">*</span>
             </label>
             <input
@@ -195,17 +195,17 @@ export function ColumnEditorModal({
               disabled={isSystemColumn}
               placeholder="e.g., URGENT, WAITING_FOR_REPLY"
               maxLength={50}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.status ? 'border-red-300' : 'border-gray-300'
-                } ${isSystemColumn ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 dark:text-white ${errors.status ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-slate-600'
+                } ${isSystemColumn ? 'bg-gray-50 dark:bg-slate-700 cursor-not-allowed text-gray-500 dark:text-slate-400' : ''}`}
             />
             {errors.status && (
-              <p className="mt-1 text-xs text-red-600">{errors.status}</p>
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.status}</p>
             )}
             {isSystemColumn && (
-              <p className="mt-1 text-xs text-gray-500">System column status cannot be changed</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">System column status cannot be changed</p>
             )}
             {!isSystemColumn && (
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                 Use uppercase snake_case (e.g., WAITING_FOR_REPLY)
               </p>
             )}
@@ -214,7 +214,7 @@ export function ColumnEditorModal({
           {/* Gmail Label */}
           {!isSystemColumn && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Gmail Label (Optional)
               </label>
               <LabelSelector
@@ -225,7 +225,7 @@ export function ColumnEditorModal({
                 isLoading={isLoadingLabels}
                 error={labelsError}
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                 When a card is moved to this column, the selected Gmail label will be applied
               </p>
             </div>
@@ -233,7 +233,7 @@ export function ColumnEditorModal({
 
           {/* Color */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
               Color
             </label>
             <div className="flex flex-wrap gap-2">
@@ -242,7 +242,7 @@ export function ColumnEditorModal({
                   key={colorOption}
                   type="button"
                   onClick={() => setColor(colorOption)}
-                  className={`w-8 h-8 rounded-full border-2 transition-all ${color === colorOption ? 'border-gray-900 scale-110' : 'border-gray-200'
+                  className={`w-8 h-8 rounded-full border-2 transition-all ${color === colorOption ? 'border-gray-900 dark:border-white scale-110' : 'border-gray-200 dark:border-slate-700'
                     }`}
                   style={{ backgroundColor: colorOption }}
                   title={colorOption}
@@ -253,7 +253,7 @@ export function ColumnEditorModal({
 
           {/* Icon */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
               Icon
             </label>
             <div className="flex flex-wrap gap-2">
@@ -262,9 +262,9 @@ export function ColumnEditorModal({
                   key={iconOption}
                   type="button"
                   onClick={() => setIcon(iconOption)}
-                  className={`px-3 py-2 text-sm border rounded-lg transition-all ${icon === iconOption
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 hover:border-gray-300'
+                  className={`px-3 py-2 text-sm border rounded-lg transition-all dark:text-slate-300 ${icon === iconOption
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                    : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600'
                     }`}
                 >
                   {iconOption}
@@ -275,10 +275,10 @@ export function ColumnEditorModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
           >
             Cancel
           </button>

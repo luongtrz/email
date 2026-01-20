@@ -59,13 +59,13 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
       onClick={onSelect}
       className={`
         group relative flex items-center gap-3 px-3 py-3
-        cursor-pointer transition-all duration-200 border-b border-gray-100/80 last:border-b-0
+        cursor-pointer transition-all duration-200 border-b border-gray-100/80 dark:border-slate-800/80 last:border-b-0
         hover:shadow-sm hover:z-10
         ${isSelected
-          ? "bg-indigo-50/50"
-          : "bg-white hover:bg-white"
+          ? "bg-indigo-50/80 dark:bg-indigo-900/20"
+          : "bg-white dark:bg-slate-900 hover:bg-white dark:hover:bg-slate-800"
         }
-        ${isChecked ? "bg-indigo-50/50" : ""}
+        ${isChecked ? "bg-indigo-50/50 dark:bg-indigo-900/20" : ""}
       `}
     >
       {/* Visual Indicator Bar (Left) */}
@@ -99,7 +99,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
       {/* Star - Compact Position */}
       <button
         onClick={handleStarClick}
-        className={`flex-shrink-0 p-1 rounded-full hover:bg-gray-100 transition-all duration-200 ${email.starred ? "text-amber-400 opacity-100" : "text-gray-300 opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100"
+        className={`flex-shrink-0 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-all duration-200 ${email.starred ? "text-amber-400 opacity-100" : "text-gray-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100"
           }`}
       >
         <Star className={`w-4 h-4 ${email.starred ? "fill-current" : ""}`} />
@@ -107,8 +107,8 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
 
       {/* Avatar */}
       <div className={`
-        flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ring-2 ring-white
-        ${avatarColor} ${!email.read ? "ring-indigo-100 ring-offset-1" : "opacity-80 grayscale-[0.2]"}
+        flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ring-2 ring-white dark:ring-slate-800
+        ${avatarColor} ${!email.read ? "ring-indigo-100 dark:ring-indigo-900/30 ring-offset-1" : "opacity-80 grayscale-[0.2]"}
         transition-all duration-300 group-hover:scale-105 group-hover:shadow-md
       `}>
         {initial}
@@ -119,23 +119,23 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
 
         {/* Top Line: Sender & Date */}
         <div className="flex items-center justify-between">
-          <span className={`text-sm truncate mr-2 ${!email.read ? "font-bold text-gray-900" : "font-medium text-gray-700"}`}>
+          <span className={`text-sm truncate mr-2 ${!email.read ? "font-bold text-slate-900 dark:text-white" : "font-medium text-slate-700 dark:text-slate-300"}`}>
             {senderName}
           </span>
-          <span className={`text-[11px] font-medium whitespace-nowrap flex-shrink-0 ${!email.read ? "text-indigo-600" : "text-gray-400 group-hover:text-gray-500"}`}>
+          <span className={`text-[11px] font-medium whitespace-nowrap flex-shrink-0 ${!email.read ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-500 dark:group-hover:text-slate-400"}`}>
             {formattedDate}
           </span>
         </div>
 
         {/* Bottom Line: Subject & Preview */}
         <div className="flex items-center text-sm leading-relaxed">
-          <span className={`truncate flex-shrink-0 max-w-[45%] ${!email.read ? "font-semibold text-gray-800" : "font-medium text-gray-600"}`}>
+          <span className={`truncate flex-shrink-0 max-w-[45%] ${!email.read ? "font-semibold text-slate-800 dark:text-slate-200" : "font-medium text-slate-600 dark:text-slate-400"}`}>
             {email.subject || "(No Subject)"}
           </span>
 
-          <span className="mx-2 text-gray-300 flex-shrink-0">&ndash;</span>
+          <span className="mx-2 text-slate-300 dark:text-slate-700 flex-shrink-0">&ndash;</span>
 
-          <span className="truncate text-gray-500 min-w-0 pr-2 font-normal">
+          <span className="truncate text-slate-500 dark:text-slate-500 min-w-0 pr-2 font-normal">
             {email.preview || "No preview available"}
           </span>
 

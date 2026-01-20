@@ -27,13 +27,13 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
   isAiOpen,
 }) => {
   return (
-    <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 bg-white min-h-[56px]">
+    <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 min-h-[56px] transition-colors">
       {/* Left Side - Back Button (Mobile) & Actions */}
       <div className="flex items-center gap-1">
         {onClose && (
           <button
             onClick={onClose}
-            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 mr-1"
+            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-gray-600 dark:text-slate-400 mr-1"
             aria-label="Back to list"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -50,7 +50,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
               title="Reply (Ctrl + R)"
             >
-              <Reply className="w-5 h-5 text-gray-600" />
+              <Reply className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
           )}
 
@@ -61,7 +61,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
               title="Forward (Ctrl + F)"
             >
-              <Forward className="w-5 h-5 text-gray-600" />
+              <Forward className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
           )}
 
@@ -75,7 +75,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
             title={email.starred ? "Remove star" : "Add star"}
           >
             <Star
-              className={`w-5 h-5 ${email.starred ? "fill-amber-400 text-amber-400" : "text-gray-600"
+              className={`w-5 h-5 ${email.starred ? "fill-amber-400 text-amber-400" : "text-gray-600 dark:text-slate-400"
                 }`}
             />
           </button>
@@ -87,7 +87,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
             title="Archive"
           >
-            <Archive className="w-5 h-5 text-gray-600" />
+            <Archive className="w-5 h-5 text-gray-600 dark:text-slate-400" />
           </button>
 
           {/* Delete */}
@@ -97,7 +97,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
             title="Delete"
           >
-            <Trash2 className="w-5 h-5 text-gray-600" />
+            <Trash2 className="w-5 h-5 text-gray-600 dark:text-slate-400" />
           </button>
 
           <div className="w-px h-5 bg-gray-200 mx-1" />
@@ -107,7 +107,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             title="More actions"
           >
-            <MoreHorizontal className="w-5 h-5 text-gray-600" />
+            <MoreHorizontal className="w-5 h-5 text-gray-600 dark:text-slate-400" />
           </button>
         </div>
       </div>
@@ -119,7 +119,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
             onClick={onToggleAi}
             className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 text-sm font-medium ${isAiOpen
               ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md hover:shadow-lg"
-              : "hover:bg-gray-100 text-gray-700 hover:text-purple-600 border border-gray-200 bg-white"
+              : "hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"
               }`}
             title="AI Summary (Powered by Gemini)"
           >
