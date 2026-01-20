@@ -62,7 +62,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
     }
   };
 
-  const handleDownloadAttachment = async (attachmentId: string) => {
+  const handleDownloadAttachment = async (attachmentId: string, filename?: string) => {
     if (!email) return;
     try {
       const blob = await emailService.downloadAttachment(
@@ -72,7 +72,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = attachmentId;
+      a.download = filename || "attachment";
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

@@ -354,30 +354,40 @@ export class EmailsService {
 
   async getAttachment(userId: string, messageId: string, attachmentId: string) {
     try {
-      // Get message to find attachment details
-      const message = await this.gmailApiService.getMessage(userId, messageId);
-      const attachments = this.gmailParserService.parseAttachments(
-        message.payload,
-      );
-
-      const attachmentInfo = attachments.find((att) => att.id === attachmentId);
-      if (!attachmentInfo) {
-        throw new NotFoundException('Attachment not found in message');
-      }
-
-      // Get attachment data
+      // Fetch attachment data directly from Gmail API (skip ID comparison)
       const attachment = await this.gmailApiService.getAttachment(
         userId,
         messageId,
         attachmentId,
       );
-      const data = Buffer.from(attachment.data || '', 'base64');
+
+      if (!attachment || !attachment.data) {
+        throw new NotFoundException('Attachment not found');
+      }
+
+      const data = Buffer.from(attachment.data, 'base64');
+
+      // Try to get attachment metadata for filename and content type
+      let filename = 'attachment';
+      let contentType = 'application/octet-stream';
+
+      try {
+        const message = await this.gmailApiService.getMessage(userId, messageId);
+        const attachments = this.gmailParserService.parseAttachments(message.payload);
+        const attachmentInfo = attachments.find((att) => att.id === attachmentId);
+        if (attachmentInfo) {
+          filename = attachmentInfo.name || 'attachment';
+          contentType = attachmentInfo.type || 'application/octet-stream';
+        }
+      } catch {
+        // Ignore metadata errors, use defaults
+      }
 
       return {
         data,
-        size: attachment.size || 0,
-        filename: attachmentInfo.name,
-        contentType: attachmentInfo.type,
+        size: attachment.size || data.length,
+        filename,
+        contentType,
       };
     } catch (error) {
       if (error.status === 404 || error instanceof NotFoundException) {

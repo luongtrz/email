@@ -11,15 +11,15 @@ export const getEmailPreview = (
 ): string => {
   // Remove HTML tags
   const text = content.replace(/<[^>]*>/g, "");
-  
+
   // Remove extra whitespace
   const cleaned = text.replace(/\s+/g, " ").trim();
-  
+
   // Truncate
   if (cleaned.length <= maxLength) {
     return cleaned;
   }
-  
+
   return cleaned.substring(0, maxLength).trim() + "...";
 };
 
@@ -76,11 +76,11 @@ export const parseEmailAddresses = (
   if (Array.isArray(addresses)) {
     return addresses;
   }
-  
+
   if (typeof addresses === "string") {
     return addresses.split(/[,;]/).map((addr) => addr.trim()).filter(Boolean);
   }
-  
+
   return [];
 };
 
@@ -111,13 +111,13 @@ export const truncate = (text: string, maxLength: number): string => {
  */
 export const getSenderName = (email: string): string => {
   if (!email) return "Unknown";
-  
+
   // If email is "Name <email@domain.com>", extract Name
   const match = email.match(/^([^<]+)<([^>]+)>$/);
   if (match) {
     return match[1].trim();
   }
-  
+
   // Otherwise return part before @
   const username = email.split("@")[0];
   return username.charAt(0).toUpperCase() + username.slice(1);
@@ -132,27 +132,41 @@ export type FilterMode = "ALL" | "UNREAD" | "STARRED" | "HAS_ATTACHMENT";
  * Filter emails based on selected mode
  * Used for Kanban board filtering
  */
-export const filterEmails = <T extends { 
-  read: boolean; 
-  starred: boolean; 
-  attachments?: { id: string; filename: string; mimeType: string; size: string }[] 
-}>(
+export const filterEmails = <T extends Record<string, any>>(
   emails: T[],
   filterMode: FilterMode
 ): T[] => {
   switch (filterMode) {
     case "ALL":
       return emails;
-      
+
     case "UNREAD":
-      return emails.filter((email) => !email.read);
-      
+      // Handle both 'read' (frontend type) and 'isUnread' (backend Kanban API)
+      return emails.filter((email) => {
+        if ('isUnread' in email) return email.isUnread === true;
+        if ('read' in email) return email.read === false;
+        return false;
+      });
+
     case "STARRED":
-      return emails.filter((email) => email.starred);
-      
+      // Handle 'starred' field (should come from parsed email)
+      return emails.filter((email) => {
+        if ('starred' in email) return email.starred === true;
+        // Kanban API might not have starred field - check labelIds
+        if ('labelIds' in email && Array.isArray(email.labelIds)) {
+          return email.labelIds.includes('STARRED');
+        }
+        return false;
+      });
+
     case "HAS_ATTACHMENT":
-      return emails.filter((email) => email.attachments && email.attachments.length > 0);
-      
+      // Handle both 'attachments' (frontend type) and 'hasAttachment' (backend Kanban API)
+      return emails.filter((email) => {
+        if ('hasAttachment' in email) return email.hasAttachment === true;
+        if ('attachments' in email) return email.attachments && email.attachments.length > 0;
+        return false;
+      });
+
     default:
       return emails;
   }
