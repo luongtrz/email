@@ -3,7 +3,7 @@ import { IsOptional } from 'class-validator';
 import { IsBoolean } from 'class-validator';
 
 import { registerAs } from '@nestjs/config';
-import validateConfig from '@/utils/validations/validate-config';
+import validateConfig from '../../utils/validations/validate-config';
 
 
 class DatabaseConfig {

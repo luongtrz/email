@@ -9,8 +9,8 @@ import { GmailAuthGuard } from './guards/gmail-auth.guard';
 import { AuthModule } from '../auth/auth.module';
 import { EmbeddingModule } from '../embeddings/embedding.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '@/database/entities/user.entity';
-import { EmailContent } from '@/database/entities/email-content.entity';
+import { User } from '../../database/entities/user.entity';
+import { EmailContent } from '../../database/entities/email-content.entity';
 
 @Module({
   imports: [
@@ -36,4 +36,4 @@ import { EmailContent } from '@/database/entities/email-content.entity';
     GmailAuthGuard,
   ],
 })
-export class EmailsModule {}
+export class EmailsModule { }

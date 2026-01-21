@@ -9,7 +9,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { KanbanEmailStatus } from '@/database/entities/email-metadata.entity';
+import { KanbanEmailStatus } from '../../../database/entities/email-metadata.entity';
 
 export enum SortOption {
   DATE_DESC = 'date_desc',

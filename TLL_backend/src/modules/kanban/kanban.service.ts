@@ -11,8 +11,8 @@ import {
 } from './dto/get-kanban-emails.dto';
 import { GetInitialKanbanEmailsDto, InitialLoadFolder } from './dto/get-initial-kanban-emails.dto';
 import { Email } from '../emails/interfaces/email.interface';
-import { EmailMetadata } from '@/database/entities/email-metadata.entity';
-import { KanbanEmailStatus } from '@/database/entities/email-metadata.entity';
+import { EmailMetadata } from '../../database/entities/email-metadata.entity';
+import { KanbanEmailStatus } from '../../database/entities/email-metadata.entity';
 import { KanbanEmail } from './interfaces/kanban-email.interface';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { SnoozeDto } from './dto/snooze.dto';
