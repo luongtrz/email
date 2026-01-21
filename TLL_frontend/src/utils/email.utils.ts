@@ -207,16 +207,16 @@ export const sortEmails = <T extends { date: Date | string; from: { name: string
     case "sender_asc":
       // Sender A-Z (ascending)
       return emailsCopy.sort((a, b) => {
-        const nameA = (a.from.name || a.from.email).toLowerCase();
-        const nameB = (b.from.name || b.from.email).toLowerCase();
+        const nameA = (a.from?.name || a.from?.email || 'Unknown').toLowerCase();
+        const nameB = (b.from?.name || b.from?.email || 'Unknown').toLowerCase();
         return nameA.localeCompare(nameB);
       });
 
     case "sender_desc":
       // Sender Z-A (descending)
       return emailsCopy.sort((a, b) => {
-        const nameA = (a.from.name || a.from.email).toLowerCase();
-        const nameB = (b.from.name || b.from.email).toLowerCase();
+        const nameA = (a.from?.name || a.from?.email || 'Unknown').toLowerCase();
+        const nameB = (b.from?.name || b.from?.email || 'Unknown').toLowerCase();
         return nameB.localeCompare(nameA);
       });
 
