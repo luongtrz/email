@@ -6,7 +6,7 @@ import { logger } from "../lib/logger";
 export const GoogleCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setUser, setAccessToken } = useAuthStore();
+  const { setUser, setAccessToken, setRefreshToken } = useAuthStore();
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
@@ -32,9 +32,9 @@ export const GoogleCallbackPage: React.FC = () => {
         // Parse user data
         const user = JSON.parse(decodeURIComponent(userJson));
 
-        // Store access token in memory only
-        // Refresh token is already in httpOnly cookie set by backend
+        // Store tokens in localStorage (via auth store)
         setAccessToken(accessToken);
+        setRefreshToken(refreshToken);
         setUser(user);
 
         // Success! Redirect to inbox
@@ -50,7 +50,7 @@ export const GoogleCallbackPage: React.FC = () => {
     };
 
     handleCallback();
-  }, [searchParams, navigate, setUser, setAccessToken]);
+  }, [searchParams, navigate, setUser, setAccessToken, setRefreshToken]);
 
   if (error) {
     return (
