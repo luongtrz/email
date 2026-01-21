@@ -41,12 +41,16 @@ const processQueue = (
   failedQueue = [];
 };
 
-// Logout helper
+// Logout helper - used when session is invalid
+// Does NOT call logout API to avoid 401 loops
 const logout = (): void => {
-  useAuthStore.getState().logout();
+  // Just clear local state, don't call logout API
+  // (calling logout API would cause 401 since we're already unauthenticated)
+  const authStore = useAuthStore.getState();
+  authStore.setUser(null);
 
-  // Redirect to login (cookies will be cleared by server on logout API call)
-  if (typeof window !== "undefined") {
+  // Redirect to login
+  if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
     window.location.href = "/login";
   }
 };
