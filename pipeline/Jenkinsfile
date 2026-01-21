@@ -24,7 +24,11 @@ pipeline {
                         script: """
                             if [ -d "${BACKEND_DIR}" ]; then
                                 if [ -n "\${CHANGE_ID}" ]; then
-                                    git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep "^${BACKEND_DIR}/" && echo "true" || echo "false"
+                                    if git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep -q "^${BACKEND_DIR}/"; then
+                                        echo "true"
+                                    else
+                                        echo "false"
+                                    fi
                                 else
                                     echo "true"
                                 fi
@@ -40,7 +44,11 @@ pipeline {
                         script: """
                             if [ -d "${FRONTEND_DIR}" ]; then
                                 if [ -n "\${CHANGE_ID}" ]; then
-                                    git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep "^${FRONTEND_DIR}/" && echo "true" || echo "false"
+                                    if git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep -q "^${FRONTEND_DIR}/"; then
+                                        echo "true"
+                                    else
+                                        echo "false"
+                                    fi
                                 else
                                     echo "true"
                                 fi
