@@ -50,12 +50,11 @@ export const ExampleEmailList: React.FC<ExampleEmailListProps> = ({
           <div
             key={email.id}
             onClick={() => handleEmailClick(email)}
-            className={`p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
-              selectedIndex === index ? "border-blue-500 bg-blue-50" : ""
-            }`}
+            className={`p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${selectedIndex === index ? "border-blue-500 bg-blue-50" : ""
+              }`}
           >
             <div className="flex justify-between items-start mb-2">
-              <h3 className="font-semibold text-gray-900">{email.from.name}</h3>
+              <h3 className="font-semibold text-gray-900">{email.from?.name || email.from?.email || 'Unknown'}</h3>
               <span className="text-xs text-gray-500">
                 {new Date(email.date).toLocaleTimeString()}
               </span>
