@@ -33,10 +33,14 @@ pipeline {
                             fi
                             
                             if [ -z "\${CHANGE_ID}" ]; then
+                                # Not a PR, build everything
                                 exit 0
                             fi
                             
-                            git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep -q "^${BACKEND_DIR}/"
+                            # For PR: fetch target branch and compare with merge-base
+                            git fetch origin \${CHANGE_TARGET}
+                            MERGE_BASE=\$(git merge-base HEAD origin/\${CHANGE_TARGET})
+                            git diff --name-only \${MERGE_BASE}...HEAD | grep -q "^${BACKEND_DIR}/"
                         """,
                         returnStatus: true
                     )
@@ -49,10 +53,14 @@ pipeline {
                             fi
                             
                             if [ -z "\${CHANGE_ID}" ]; then
+                                # Not a PR, build everything
                                 exit 0
                             fi
                             
-                            git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep -q "^${FRONTEND_DIR}/"
+                            # For PR: fetch target branch and compare with merge-base
+                            git fetch origin \${CHANGE_TARGET}
+                            MERGE_BASE=\$(git merge-base HEAD origin/\${CHANGE_TARGET})
+                            git diff --name-only \${MERGE_BASE}...HEAD | grep -q "^${FRONTEND_DIR}/"
                         """,
                         returnStatus: true
                     )
