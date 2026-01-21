@@ -1,0 +1,77 @@
+pipeline {
+    agent any
+
+    environment {
+        BACKEND_DIR = 'TLL_backend'
+        FRONTEND_DIR = 'TLL_frontend'
+        DOCKER_IMAGE_TAG = "${env.CHANGE_ID ?: env.BRANCH_NAME ?: 'latest'}"
+        BUILD_BACKEND = 'true'
+        BUILD_FRONTEND = 'true'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    sh 'git log -1 --oneline'
+                    sh 'echo "Current branch: $(git branch --show-current)"'
+                    sh 'echo "CHANGE_ID: ${CHANGE_ID}"'
+                    sh 'echo "CHANGE_TARGET: ${CHANGE_TARGET}"'
+                }
+            }
+        }
+
+        stage('Build Backend Docker Image') {
+            steps {
+                dir(env.BACKEND_DIR) {
+                    script {
+                        echo "Building backend Docker image..."
+                        sh """
+                            docker build -t tll-backend:${env.DOCKER_IMAGE_TAG} .
+                            docker tag tll-backend:${env.DOCKER_IMAGE_TAG} tll-backend:latest
+                        """
+                        echo "Backend image built: tll-backend:${env.DOCKER_IMAGE_TAG}"
+                    }
+                }
+            }
+        }
+
+        stage('Build Frontend Docker Image') {
+            steps {
+                dir(env.FRONTEND_DIR) {
+                    script {
+                        echo "Building frontend Docker image..."
+                        sh """
+                            docker build -t tll-frontend:${env.DOCKER_IMAGE_TAG} .
+                            docker tag tll-frontend:${env.DOCKER_IMAGE_TAG} tll-frontend:latest
+                        """
+                        echo "Frontend image built: tll-frontend:${env.DOCKER_IMAGE_TAG}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                def built = []
+                if (env.BUILD_BACKEND == 'true') built.add('Backend')
+                if (env.BUILD_FRONTEND == 'true') built.add('Frontend')
+                
+                if (built.size() > 0) {
+                    echo "Build completed: ${built.join(', ')}"
+                } else {
+                    echo "No changes detected"
+                }
+            }
+        }
+        failure {
+            echo "Build failed!"
+        }
+        always {
+            sh 'docker system prune -f || true'
+        }
+    }
+}
