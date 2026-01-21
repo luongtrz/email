@@ -9,7 +9,7 @@ import {
   type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { Eye, EyeOff, Filter, ArrowUpDown, MailOpen, Star, Paperclip, Settings } from "lucide-react";
+import { Eye, EyeOff, Filter, ArrowUpDown, MailOpen, Star, Settings } from "lucide-react";
 import { useDashboardStore } from "../../store/dashboard.store";
 import { useKanbanConfigStore, initializeKanbanConfig } from "../../store/kanbanConfig.store";
 import { KanbanColumn } from "./KanbanColumn";
