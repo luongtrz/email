@@ -8,11 +8,54 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body }) => {
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
   const [hasError, setHasError] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
   const resizeObserverRef = React.useRef<ResizeObserver | null>(null);
+
+  // Detect dark mode
+  React.useEffect(() => {
+    // Initial check
+    const checkDarkMode = () => {
+      setIsDarkMode(document.documentElement.classList.contains("dark"));
+    };
+    checkDarkMode();
+
+    // Observe changes to html class attribute
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (
+          mutation.type === "attributes" &&
+          mutation.attributeName === "class"
+        ) {
+          checkDarkMode();
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const wrappedHTML = React.useMemo(() => {
     // Detect if body is already a complete HTML document
     const isCompleteHTML = /<!DOCTYPE/i.test(body) || /<html[^>]*>/i.test(body);
+
+    const darkModeStyle = isDarkMode ? `
+      html {
+        filter: invert(1) hue-rotate(180deg);
+      }
+      /* Restore images/media/iframes/vectors to normal colors */
+      img, video, iframe, canvas, svg, embed, object {
+        filter: invert(1) hue-rotate(180deg);
+      }
+      /* Prevent double inversion if inner iframes are used */
+      iframe html {
+        filter: none;
+      }
+    ` : '';
 
     // If already complete HTML document, enhance it with safety measures
     if (isCompleteHTML) {
@@ -33,6 +76,17 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body }) => {
           /(<head[^>]*>)/i,
           '$1\n<meta charset="UTF-8">'
         );
+      }
+
+      // Inject dark mode styles if needed
+      if (isDarkMode) {
+        // If <style> exists, append to it, otherwise add to head
+        if (enhancedHTML.includes('</head>')) {
+          enhancedHTML = enhancedHTML.replace('</head>', `<style>${darkModeStyle}</style></head>`);
+        } else {
+          // Fallback if no head (unlikely for complete HTML but possible)
+          enhancedHTML = `<style>${darkModeStyle}</style>` + enhancedHTML;
+        }
       }
 
       return enhancedHTML;
@@ -131,13 +185,15 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body }) => {
     body > center {
       max-width: 100% !important;
     }
+
+    ${darkModeStyle}
   </style>
 </head>
 <body>
 ${body}
 </body>
 </html>`;
-  }, [body]);
+  }, [body, isDarkMode]);
 
   // Enhanced resize logic with ResizeObserver for continuous monitoring
   const setupResizeObserver = React.useCallback(() => {
@@ -244,10 +300,10 @@ ${body}
   return (
     <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden relative">
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-slate-800 z-10">
           <div className="flex flex-col items-center gap-3">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <div className="text-sm text-gray-600">Loading email...</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Loading email...</div>
           </div>
         </div>
       )}
@@ -262,7 +318,7 @@ ${body}
           minHeight: '400px',
           height: '600px',
           display: 'block',
-          backgroundColor: '#fff',
+          backgroundColor: isDarkMode ? '#1e293b' : '#fff', // slate-900 : white
         }}
         // NO sandbox - trust Gmail's sanitization, allow all features
         referrerPolicy="no-referrer"
