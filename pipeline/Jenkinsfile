@@ -28,19 +28,23 @@ pipeline {
                     // Check if backend has changes
                     def backendStatus = sh(
                         script: """
+                            set -x
                             if [ ! -d "${BACKEND_DIR}" ]; then
+                                echo "Directory ${BACKEND_DIR} not found"
                                 exit 1
                             fi
                             
                             if [ -z "\${CHANGE_ID}" ]; then
-                                # Not a PR, build everything
+                                echo "Not a PR, skipping change detection"
                                 exit 0
                             fi
                             
-                            # For PR: fetch target branch and compare with merge-base
-                            git fetch origin \${CHANGE_TARGET}
-                            MERGE_BASE=\$(git merge-base HEAD origin/\${CHANGE_TARGET})
-                            git diff --name-only \${MERGE_BASE}...HEAD | grep -q "^${BACKEND_DIR}/"
+                            echo "Checking changes for ${BACKEND_DIR}..."
+                            # List changed files for information
+                            git diff --name-only remotes/origin/\${CHANGE_TARGET}...HEAD
+                            
+                            # Check if matches (grep returns 0 if found)
+                            git diff --name-only remotes/origin/\${CHANGE_TARGET}...HEAD | grep "^${BACKEND_DIR}/"
                         """,
                         returnStatus: true
                     )
@@ -48,19 +52,23 @@ pipeline {
                     // Check if frontend has changes
                     def frontendStatus = sh(
                         script: """
+                            set -x
                             if [ ! -d "${FRONTEND_DIR}" ]; then
+                                echo "Directory ${FRONTEND_DIR} not found"
                                 exit 1
                             fi
                             
                             if [ -z "\${CHANGE_ID}" ]; then
-                                # Not a PR, build everything
+                                echo "Not a PR, skipping change detection"
                                 exit 0
                             fi
                             
-                            # For PR: fetch target branch and compare with merge-base
-                            git fetch origin \${CHANGE_TARGET}
-                            MERGE_BASE=\$(git merge-base HEAD origin/\${CHANGE_TARGET})
-                            git diff --name-only \${MERGE_BASE}...HEAD | grep -q "^${FRONTEND_DIR}/"
+                            echo "Checking changes for ${FRONTEND_DIR}..."
+                            # List changed files for information
+                            git diff --name-only remotes/origin/\${CHANGE_TARGET}...HEAD
+                            
+                            # Check if matches (grep returns 0 if found)
+                            git diff --name-only remotes/origin/\${CHANGE_TARGET}...HEAD | grep "^${FRONTEND_DIR}/"
                         """,
                         returnStatus: true
                     )
