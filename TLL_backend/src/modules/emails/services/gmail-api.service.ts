@@ -12,7 +12,7 @@ export class GmailApiService {
   constructor(
     private googleTokenService: GoogleTokenService,
     private gmailParserService: GmailParserService,
-  ) {}
+  ) { }
 
   /**
    * Get Gmail client for a user
@@ -101,10 +101,11 @@ export class GmailApiService {
 
   /**
    * Get multiple messages by IDs
+   * Uses Promise.allSettled to handle cases where some emails may have been deleted from Gmail
    */
   async getMessages(userId: string, messageIds: string[]) {
     const gmail = await this.getGmailClient(userId);
-    const messages = await Promise.all(
+    const results = await Promise.allSettled(
       messageIds.map((id) =>
         gmail.users.messages.get({
           userId: 'me',
@@ -113,7 +114,23 @@ export class GmailApiService {
         }),
       ),
     );
-    return messages.map((response) => response.data);
+
+    // Filter out failed requests (e.g., 404 for deleted emails)
+    const successfulMessages = results
+      .filter((result): result is PromiseFulfilledResult<any> => {
+        if (result.status === 'rejected') {
+          // Log the error but don't fail the entire request
+          console.warn(
+            `[GmailApiService] Skipping email that no longer exists in Gmail:`,
+            result.reason?.message || 'Unknown error',
+          );
+          return false;
+        }
+        return true;
+      })
+      .map((result) => result.value.data);
+
+    return successfulMessages;
   }
 
   /**
