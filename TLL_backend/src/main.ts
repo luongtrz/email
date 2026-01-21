@@ -6,8 +6,8 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import helmet from 'helmet';
-import * as compression from 'compression';
-import * as cookieParser from 'cookie-parser';
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { validationExceptionFactory } from './common/filters/validation-exception.filter';
 
 async function bootstrap() {
@@ -21,20 +21,20 @@ async function bootstrap() {
     }),
   );
   app.use(compression());
-  
+
   // Cookie parser for JWT tokens
   app.use(cookieParser());
 
   // CORS configuration
-  const corsOrigin = process.env.CORS_ORIGIN 
+  const corsOrigin = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
     : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'];
-  
+
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-      
+
       // Check if origin is in allowed list
       if (corsOrigin.includes(origin) || corsOrigin.includes('*')) {
         callback(null, true);
