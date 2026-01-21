@@ -46,8 +46,8 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
     onToggleStar?.();
   };
 
-  const avatarColor = getAvatarColor(email.from.name || email.from.email);
-  const senderName = email.from.name || email.from.email;
+  const avatarColor = getAvatarColor(email.from?.name || email.from?.email || 'Unknown');
+  const senderName = email.from?.name || email.from?.email || 'Unknown';
   const initial = senderName.charAt(0).toUpperCase();
   const formattedDate = formatEmailDate(
     typeof email.date === "string" ? email.date : email.date.toISOString()

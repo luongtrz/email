@@ -20,8 +20,8 @@ const getAvatarColor = (name: string): string => {
 
 export const EmailDetailSender: React.FC<EmailDetailSenderProps> = ({ email }) => {
   const [showMore, setShowMore] = useState(false);
-  const avatarColor = getAvatarColor(email.from.name || email.from.email);
-  const initial = (email.from.name?.charAt(0) || email.from.email.charAt(0)).toUpperCase();
+  const avatarColor = getAvatarColor(email.from?.name || email.from?.email || 'Unknown');
+  const initial = (email.from?.name?.charAt(0) || email.from?.email?.charAt(0) || '?').toUpperCase();
 
   const formatFullDate = (date: Date | string) => {
     const dateObj = typeof date === "string" ? new Date(date) : date;
@@ -47,7 +47,7 @@ export const EmailDetailSender: React.FC<EmailDetailSenderProps> = ({ email }) =
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-gray-900 dark:text-white">{email.from.name || email.from.email}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{email.from?.name || email.from?.email || 'Unknown'}</span>
               </div>
               <button
                 onClick={() => setShowMore(!showMore)}
@@ -67,7 +67,7 @@ export const EmailDetailSender: React.FC<EmailDetailSenderProps> = ({ email }) =
             <div className="mt-3 text-sm text-gray-600 dark:text-slate-300 space-y-1.5 bg-gray-50/80 dark:bg-slate-800/80 p-3 rounded-lg border border-gray-100 dark:border-slate-700">
               <div>
                 <span className="font-medium text-gray-700 dark:text-slate-200">From:</span>{" "}
-                {email.from.name} &lt;{email.from.email}&gt;
+                {email.from?.name || 'Unknown'} &lt;{email.from?.email || ''}&gt;
               </div>
               {email.to && email.to.length > 0 && (
                 <div>

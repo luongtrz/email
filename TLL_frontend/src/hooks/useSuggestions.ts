@@ -55,7 +55,7 @@ export function useSuggestions(
 
     const senderMap = new Map<string, Email>();
     emails.forEach((email) => {
-      const key = email.from.email.toLowerCase();
+      const key = email.from?.email?.toLowerCase() || '';
       if (
         !senderMap.has(key) ||
         new Date(email.date) > new Date(senderMap.get(key)!.date)
@@ -65,7 +65,7 @@ export function useSuggestions(
     });
 
     senderMap.forEach((email, senderEmail) => {
-      const senderName = email.from.name || senderEmail;
+      const senderName = email.from?.name || senderEmail || 'Unknown';
       const senderNameLower = senderName.toLowerCase();
       const senderEmailLower = senderEmail.toLowerCase();
 
@@ -134,7 +134,7 @@ export function useSuggestions(
 
     // Add senders that weren't exact matched
     senderMap.forEach((email, senderEmail) => {
-      const senderName = email.from.name || senderEmail;
+      const senderName = email.from?.name || senderEmail || 'Unknown';
       if (!seenSenders.has(senderName.toLowerCase())) {
         allCandidates.push({
           text: senderName,
