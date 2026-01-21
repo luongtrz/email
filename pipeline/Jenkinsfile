@@ -1,0 +1,121 @@
+pipeline {
+    agent any
+
+    environment {
+        BACKEND_DIR = 'TLL_backend'
+        FRONTEND_DIR = 'TLL_frontend'
+        DOCKER_IMAGE_TAG = "${env.CHANGE_ID ?: env.BRANCH_NAME ?: 'latest'}"
+        BUILD_BACKEND = 'false'
+        BUILD_FRONTEND = 'false'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Detect Changes') {
+            steps {
+                script {
+                    // Check if backend has changes
+                    def backendChanged = sh(
+                        script: """
+                            if [ -d "${BACKEND_DIR}" ]; then
+                                if [ -n "\${CHANGE_ID}" ]; then
+                                    git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep "^${BACKEND_DIR}/" && echo "true" || echo "false"
+                                else
+                                    echo "true"
+                                fi
+                            else
+                                echo "false"
+                            fi
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    // Check if frontend has changes
+                    def frontendChanged = sh(
+                        script: """
+                            if [ -d "${FRONTEND_DIR}" ]; then
+                                if [ -n "\${CHANGE_ID}" ]; then
+                                    git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep "^${FRONTEND_DIR}/" && echo "true" || echo "false"
+                                else
+                                    echo "true"
+                                fi
+                            else
+                                echo "false"
+                            fi
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    env.BUILD_BACKEND = backendChanged
+                    env.BUILD_FRONTEND = frontendChanged
+                    
+                    echo "Build Backend: ${env.BUILD_BACKEND}"
+                    echo "Build Frontend: ${env.BUILD_FRONTEND}"
+                }
+            }
+        }
+
+        stage('Build Backend Docker Image') {
+            when {
+                expression { env.BUILD_BACKEND == 'true' }
+            }
+            steps {
+                dir(env.BACKEND_DIR) {
+                    script {
+                        echo "Building backend Docker image..."
+                        sh """
+                            docker build -t tll-backend:${env.DOCKER_IMAGE_TAG} .
+                            docker tag tll-backend:${env.DOCKER_IMAGE_TAG} tll-backend:latest
+                        """
+                        echo "Backend image built: tll-backend:${env.DOCKER_IMAGE_TAG}"
+                    }
+                }
+            }
+        }
+
+        stage('Build Frontend Docker Image') {
+            when {
+                expression { env.BUILD_FRONTEND == 'true' }
+            }
+            steps {
+                dir(env.FRONTEND_DIR) {
+                    script {
+                        echo "Building frontend Docker image..."
+                        sh """
+                            docker build -t tll-frontend:${env.DOCKER_IMAGE_TAG} .
+                            docker tag tll-frontend:${env.DOCKER_IMAGE_TAG} tll-frontend:latest
+                        """
+                        echo "Frontend image built: tll-frontend:${env.DOCKER_IMAGE_TAG}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                def built = []
+                if (env.BUILD_BACKEND == 'true') built.add('Backend')
+                if (env.BUILD_FRONTEND == 'true') built.add('Frontend')
+                
+                if (built.size() > 0) {
+                    echo "Build completed: ${built.join(', ')}"
+                } else {
+                    echo "No changes detected"
+                }
+            }
+        }
+        failure {
+            echo "Build failed!"
+        }
+        always {
+            sh 'docker system prune -f || true'
+        }
+    }
+}
