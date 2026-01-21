@@ -22,9 +22,10 @@ pipeline {
                     // Check if backend has changes
                     def backendChanged = sh(
                         script: """
+                            set +x
                             if [ -d "${BACKEND_DIR}" ]; then
                                 if [ -n "\${CHANGE_ID}" ]; then
-                                    if git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep -q "^${BACKEND_DIR}/"; then
+                                    if git diff --name-only origin/\${CHANGE_TARGET}...HEAD 2>/dev/null | grep -q "^${BACKEND_DIR}/"; then
                                         echo "true"
                                     else
                                         echo "false"
@@ -42,9 +43,10 @@ pipeline {
                     // Check if frontend has changes
                     def frontendChanged = sh(
                         script: """
+                            set +x
                             if [ -d "${FRONTEND_DIR}" ]; then
                                 if [ -n "\${CHANGE_ID}" ]; then
-                                    if git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep -q "^${FRONTEND_DIR}/"; then
+                                    if git diff --name-only origin/\${CHANGE_TARGET}...HEAD 2>/dev/null | grep -q "^${FRONTEND_DIR}/"; then
                                         echo "true"
                                     else
                                         echo "false"
