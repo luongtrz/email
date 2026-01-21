@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { formatEmailDate } from "../../../utils/email.utils";
 import { ChevronDown } from "lucide-react";
 import type { Email } from "../../../types/email.types";
+import { useAuthStore } from "../../../store/auth.store";
 
 interface EmailDetailSenderProps {
   email: Email;
@@ -20,8 +21,15 @@ const getAvatarColor = (name: string): string => {
 
 export const EmailDetailSender: React.FC<EmailDetailSenderProps> = ({ email }) => {
   const [showMore, setShowMore] = useState(false);
+  const { user } = useAuthStore();
+
   const avatarColor = getAvatarColor(email.from?.name || email.from?.email || 'Unknown');
   const initial = (email.from?.name?.charAt(0) || email.from?.email?.charAt(0) || '?').toUpperCase();
+
+  const isSentByMe = user?.email && email.from?.email === user.email;
+  // Get primary recipient for display
+  const primaryRecipient = Array.isArray(email.to) ? email.to[0] : (email.to || 'Unknown');
+  const recipientDisplay = isSentByMe ? `to ${primaryRecipient}` : 'to me';
 
   const formatFullDate = (date: Date | string) => {
     const dateObj = typeof date === "string" ? new Date(date) : date;
@@ -53,7 +61,7 @@ export const EmailDetailSender: React.FC<EmailDetailSenderProps> = ({ email }) =
                 onClick={() => setShowMore(!showMore)}
                 className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 flex items-center gap-1 mt-0.5"
               >
-                <span>to me</span>
+                <span>{recipientDisplay}</span>
                 <ChevronDown className={`w-3 h-3 transition-transform ${showMore ? 'rotate-180' : ''}`} />
               </button>
             </div>
@@ -69,7 +77,7 @@ export const EmailDetailSender: React.FC<EmailDetailSenderProps> = ({ email }) =
                 <span className="font-medium text-gray-700 dark:text-slate-200">From:</span>{" "}
                 {email.from?.name || 'Unknown'} &lt;{email.from?.email || ''}&gt;
               </div>
-              {email.to && email.to.length > 0 && (
+              {email.to && (
                 <div>
                   <span className="font-medium text-gray-700 dark:text-slate-200">To:</span>{" "}
                   {Array.isArray(email.to) ? email.to.join(", ") : email.to}

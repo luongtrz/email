@@ -47,6 +47,9 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body }) => {
       html {
         filter: invert(1) hue-rotate(180deg);
       }
+      html, body {
+        background: transparent !important;
+      }
       /* Restore images/media/iframes/vectors to normal colors */
       img, video, iframe, canvas, svg, embed, object {
         filter: invert(1) hue-rotate(180deg);
@@ -130,7 +133,7 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body }) => {
       font-size: 14px;
       line-height: 1.5;
       color: #000;
-      background: #fff;
+      background: ${isDarkMode ? 'transparent' : '#fff'};
       padding: ${isPlainText ? '16px' : '0'};
       ${isPlainText ? 'white-space: pre-wrap;' : ''}
       overflow-wrap: break-word;
@@ -318,7 +321,7 @@ ${body}
           minHeight: '400px',
           height: '600px',
           display: 'block',
-          backgroundColor: isDarkMode ? '#1e293b' : '#fff', // slate-900 : white
+          backgroundColor: 'transparent', // Always transparent, let parent color show through
         }}
         // NO sandbox - trust Gmail's sanitization, allow all features
         referrerPolicy="no-referrer"
