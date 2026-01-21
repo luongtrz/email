@@ -23,7 +23,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -32,7 +32,7 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Email already exists' })
   async register(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.register(registerDto);
-    
+
     // Set tokens in cookies
     res.cookie('accessToken', result.accessToken, {
       httpOnly: true,
@@ -46,7 +46,7 @@ export class AuthController {
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
-    
+
     return {
       user: result.user,
       accessToken: result.accessToken, // For frontend memory storage
@@ -61,7 +61,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(loginDto);
-    
+
     // Set tokens in cookies
     res.cookie('accessToken', result.accessToken, {
       httpOnly: true,
@@ -75,7 +75,7 @@ export class AuthController {
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
-    
+
     return {
       user: result.user,
       accessToken: result.accessToken, // For frontend memory storage
@@ -110,42 +110,37 @@ export class AuthController {
     @Query('state') state: string,
     @Res() res: Response,
   ) {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
     if (!code) {
-      // Redirect to frontend with error
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       return res.redirect(`${frontendUrl}/login?error=missing_code`);
     }
 
     try {
       const result = await this.authService.googleOAuthCallback(code);
 
-      // Set access token in HTTP-only cookie (backup)
+      // Set access token in HTTP-only cookie
       res.cookie('accessToken', result.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 60 * 60 * 1000, // 1 hour
+        path: '/',
       });
 
-      // Set refresh token in HTTP-only cookie (backup)
+      // Set refresh token in HTTP-only cookie
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
       });
 
-      // Encode tokens in URL for frontend to capture
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-      const callbackUrl = `${frontendUrl}/auth/google/callback?` +
-        `accessToken=${encodeURIComponent(result.accessToken)}` +
-        `&refreshToken=${encodeURIComponent(result.refreshToken)}` +
-        `&user=${encodeURIComponent(JSON.stringify(result.user))}`;
-      
-      return res.redirect(callbackUrl);
+      // Redirect to frontend callback page WITHOUT tokens in URL (secure)
+      // Frontend will call /api/auth/profile to get user info
+      return res.redirect(`${frontendUrl}/auth/google/callback?success=true`);
     } catch (error) {
-      // Redirect to frontend with error
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       return res.redirect(`${frontendUrl}/login?error=auth_failed`);
     }
   }
@@ -169,7 +164,7 @@ export class AuthController {
 
     try {
       const decoded = await this.authService['jwtService'].decode(refreshToken);
-      
+
       if (!decoded || !decoded.sub) {
         throw new UnauthorizedException('Invalid refresh token');
       }
@@ -224,11 +219,11 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Successfully logged out' })
   async logout(@Request() req, @Res({ passthrough: true }) res: Response) {
     await this.authService.logout(req.user.id);
-    
+
     // Clear cookies
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
-    
+
     return { message: 'Successfully logged out' };
   }
 }

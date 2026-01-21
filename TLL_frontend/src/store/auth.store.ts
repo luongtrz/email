@@ -3,57 +3,29 @@ import { authApi } from "../services/auth.service";
 import type { User, LoginRequest, RegisterRequest } from "../types/auth.types";
 import { logger } from "../lib/logger";
 
-// LocalStorage keys
-const ACCESS_TOKEN_KEY = 'accessToken';
-const REFRESH_TOKEN_KEY = 'refreshToken';
+// LocalStorage key for user info (not tokens - tokens are in HTTP-only cookies)
 const USER_KEY = 'user';
 
 interface AuthState {
-  // Access token lưu trong MEMORY (không persist)
-  accessToken: string | null;
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 
   // Internal setters
-  setAccessToken: (token: string | null) => void;
-  setRefreshToken: (token: string | null) => void;
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
 
   // Auth methods
   login: (credentials: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
-  googleLogin: (googleToken: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   initAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  accessToken: null,
   user: null,
   isAuthenticated: false,
   isLoading: false,
-
-  setAccessToken: (token) => {
-    if (token) {
-      localStorage.setItem(ACCESS_TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-    }
-    set({
-      accessToken: token,
-      isAuthenticated: !!token,
-    });
-  },
-
-  setRefreshToken: (token) => {
-    if (token) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-    }
-  },
 
   setUser: (user) => {
     if (user) {
@@ -72,12 +44,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (credentials: LoginRequest) => {
     try {
       const response = await authApi.login(credentials);
-      // Backend sets tokens in httpOnly cookies + returns accessToken in body
+      // Backend sets tokens in httpOnly cookies
       set({
-        accessToken: response.data.accessToken,
         user: response.data.user,
         isAuthenticated: true,
       });
+      // Cache user info in localStorage
+      localStorage.setItem(USER_KEY, JSON.stringify(response.data.user));
       logger.info("Login success!", { email: response.data.user?.email });
     } catch (error) {
       logger.error("Login error", error);
@@ -87,21 +60,13 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   register: async (data: RegisterRequest) => {
     const response = await authApi.register(data);
-    // Backend sets tokens in httpOnly cookies + returns accessToken in body
+    // Backend sets tokens in httpOnly cookies
     set({
-      accessToken: response.data.accessToken,
       user: response.data.user,
       isAuthenticated: true,
     });
-  },
-
-  googleLogin: async (googleToken: string) => {
-    const response = await authApi.googleLogin(googleToken);
-    set({
-      accessToken: response.data.accessToken,
-      user: response.data.user,
-      isAuthenticated: true,
-    });
+    // Cache user info in localStorage
+    localStorage.setItem(USER_KEY, JSON.stringify(response.data.user));
   },
 
   logout: async () => {
@@ -113,14 +78,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Continue with local cleanup even if API fails
     }
 
-    // Clear localStorage
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    // Clear localStorage (only user info, tokens are in cookies)
     localStorage.removeItem(USER_KEY);
 
     // Clear local state
     set({
-      accessToken: null,
       user: null,
       isAuthenticated: false,
     });
@@ -130,73 +92,45 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
 
     try {
-      // First, try to restore from localStorage
-      const storedToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-      const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+      // Try to get profile from backend
+      // If cookies are valid, this will succeed
+      const profile = await authApi.getProfile();
+      set({
+        user: profile.data,
+        isAuthenticated: true
+      });
+      // Update cached user info
+      localStorage.setItem(USER_KEY, JSON.stringify(profile.data));
+    } catch {
+      // Not authenticated or session expired
+      // Try to restore from localStorage cache first for a smoother UX
       const storedUser = localStorage.getItem(USER_KEY);
-
-      if (storedToken && storedUser) {
-        // Restore from localStorage
-        set({
-          accessToken: storedToken,
-          user: JSON.parse(storedUser),
-          isAuthenticated: true,
-        });
-
-        // Verify token is still valid by getting profile
+      if (storedUser) {
+        // We have cached user but cookies might be expired
+        // Try to refresh the session
         try {
+          await authApi.refreshToken();
           const profile = await authApi.getProfile();
-          set({ user: profile.data });
+          set({
+            user: profile.data,
+            isAuthenticated: true
+          });
           localStorage.setItem(USER_KEY, JSON.stringify(profile.data));
         } catch {
-          // Token expired, try refresh
-          if (storedRefreshToken) {
-            try {
-              const refreshResponse = await authApi.refreshToken();
-              const newToken = refreshResponse.data.accessToken;
-              localStorage.setItem(ACCESS_TOKEN_KEY, newToken);
-              set({ accessToken: newToken });
-
-              const profile = await authApi.getProfile();
-              set({ user: profile.data });
-              localStorage.setItem(USER_KEY, JSON.stringify(profile.data));
-            } catch {
-              // Refresh failed, clear everything
-              localStorage.removeItem(ACCESS_TOKEN_KEY);
-              localStorage.removeItem(REFRESH_TOKEN_KEY);
-              localStorage.removeItem(USER_KEY);
-              set({
-                accessToken: null,
-                user: null,
-                isAuthenticated: false,
-              });
-            }
-          } else {
-            // No refresh token, clear everything
-            localStorage.removeItem(ACCESS_TOKEN_KEY);
-            localStorage.removeItem(USER_KEY);
-            set({
-              accessToken: null,
-              user: null,
-              isAuthenticated: false,
-            });
-          }
+          // Refresh also failed, clear everything
+          localStorage.removeItem(USER_KEY);
+          set({
+            user: null,
+            isAuthenticated: false,
+          });
         }
       } else {
-        // No stored auth, user needs to login
+        // No cached user, user needs to login
         set({
-          accessToken: null,
           user: null,
           isAuthenticated: false,
         });
       }
-    } catch {
-      logger.error("InitAuth error");
-      set({
-        accessToken: null,
-        user: null,
-        isAuthenticated: false,
-      });
     } finally {
       set({ isLoading: false });
     }

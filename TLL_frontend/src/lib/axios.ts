@@ -29,27 +29,16 @@ let failedQueue: Array<{
 
 const processQueue = (
   error: AxiosError | null,
-  token: string | null = null
 ) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve(token);
+      prom.resolve();
     }
   });
 
   failedQueue = [];
-};
-
-// Get access token từ Zustand store
-const getAccessToken = (): string | null => {
-  return useAuthStore.getState().accessToken;
-};
-
-// Set access token vào Zustand store
-const setAccessToken = (token: string | null): void => {
-  useAuthStore.getState().setAccessToken(token);
 };
 
 // Logout helper
@@ -62,15 +51,10 @@ const logout = (): void => {
   }
 };
 
-// REQUEST INTERCEPTOR - Auto-attach access token
+// REQUEST INTERCEPTOR - No need to manually set token, cookies are sent automatically
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = getAccessToken();
-
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
+    // Cookies are sent automatically with withCredentials: true
     return config;
   },
   (error) => {
@@ -134,33 +118,25 @@ apiClient.interceptors.response.use(
 
     try {
       // Call refresh token API - cookie will be sent automatically
-      const response = await axios.post(
+      // Backend will set new cookies in the response
+      await axios.post(
         `${API_BASE_URL}${API_ENDPOINTS.AUTH.REFRESH}`,
         {},
         {
           headers: {
             "Content-Type": "application/json",
           },
-          withCredentials: true, // Send cookies
+          withCredentials: true, // Send and receive cookies
         }
       );
 
-      const { accessToken } = response.data;
+      // Process queue - new cookies are already set by backend
+      processQueue(null);
 
-      // Update access token in memory
-      setAccessToken(accessToken);
-
-      // Process queue
-      processQueue(null, accessToken);
-
-      // Retry original request
-      if (originalRequest.headers) {
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-      }
-
+      // Retry original request - cookies will be sent automatically
       return apiClient(originalRequest);
     } catch (refreshError) {
-      processQueue(refreshError as AxiosError, null);
+      processQueue(refreshError as AxiosError);
       logout();
       return Promise.reject(refreshError);
     } finally {
