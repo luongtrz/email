@@ -117,11 +117,11 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
     setIsActionLoading(true);
     try {
       await emailService.modifyEmail(fullEmail.id, { archive: true });
-      toast.success("Email archived");
+      toast.success("Đã lưu trữ email");
       onEmailUpdated?.();
       onClose();
     } catch {
-      toast.error("Failed to archive email");
+      toast.error("Không thể lưu trữ email");
     } finally {
       setIsActionLoading(false);
     }
@@ -160,7 +160,7 @@ export const EmailDetailModal: React.FC<EmailDetailModalProps> = ({
       document.body.removeChild(a);
     } catch (error) {
       console.error('[Download Error]', error);
-      toast.error("Failed to download attachment");
+      toast.error("Không thể tải tệp đính kèm");
     }
   };
 

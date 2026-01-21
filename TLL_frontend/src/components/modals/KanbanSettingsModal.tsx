@@ -112,7 +112,7 @@ export function KanbanSettingsModal({ isOpen, onClose }: KanbanSettingsModalProp
     } catch (error: any) {
       console.error('Failed to fetch Gmail labels:', error);
       setLabelsError(error.message || 'Failed to load Gmail labels');
-      toast.error('Failed to load Gmail labels');
+      toast.error('Không thể tải nhãn Gmail');
     } finally {
       setIsLoadingLabels(false);
     }
@@ -144,7 +144,7 @@ export function KanbanSettingsModal({ isOpen, onClose }: KanbanSettingsModalProp
 
       if (oldIndex !== -1 && newIndex !== -1) {
         reorderColumns(oldIndex, newIndex);
-        toast.success('Column order updated');
+        toast.success('Cập nhật thứ tự cột thành công');
       }
     }
   };
@@ -167,7 +167,7 @@ export function KanbanSettingsModal({ isOpen, onClose }: KanbanSettingsModalProp
       if (editingColumn) {
         // Update existing column
         updateColumn(editingColumn.id, columnData);
-        toast.success('Column updated successfully');
+        toast.success('Cập nhật cột thành công');
       } else {
         // Add new column
         addColumn({
@@ -179,10 +179,10 @@ export function KanbanSettingsModal({ isOpen, onClose }: KanbanSettingsModalProp
           icon: columnData.icon!,
           order: columnData.order || columns.length,
         });
-        toast.success('Column added successfully');
+        toast.success('Thêm cột thành công');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save column');
+      toast.error(error.message || 'Không thể lưu cột');
     }
   };
 
@@ -190,9 +190,9 @@ export function KanbanSettingsModal({ isOpen, onClose }: KanbanSettingsModalProp
   const handleDeleteColumn = (columnId: string) => {
     try {
       deleteColumn(columnId);
-      toast.success('Column deleted successfully');
+      toast.success('Xóa cột thành công');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete column');
+      toast.error(error.message || 'Không thể xóa cột');
     }
   };
 
@@ -204,7 +204,7 @@ export function KanbanSettingsModal({ isOpen, onClose }: KanbanSettingsModalProp
       )
     ) {
       resetToDefaults();
-      toast.success('Reset to default columns');
+      toast.success('Đã khôi phục về cột mặc định');
     }
   };
 

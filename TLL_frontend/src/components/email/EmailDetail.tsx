@@ -6,6 +6,7 @@ import { EmailDetailBody } from "./detail/EmailDetailBody";
 import { EmailDetailAttachments } from "./detail/EmailDetailAttachments";
 import type { Email } from "../../types/email.types";
 import { emailService } from "../../services/email.service";
+import { useStarEmailMutation } from "../../hooks/queries/useEmailsQuery";
 import toast from "react-hot-toast";
 
 interface EmailDetailProps {
@@ -33,33 +34,35 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Use mutation for optimistic update
+  const starMutation = useStarEmailMutation();
+
   const handleArchive = async () => {
     if (!email) return;
     setIsActionLoading(true);
     try {
       await emailService.modifyEmail(email.id, { archive: true });
-      toast.success("Email archived");
+      toast.success("Đã lưu trữ email");
       onEmailUpdated?.();
       onClose?.();
     } catch {
-      toast.error("Failed to archive email");
+      toast.error("Không thể lưu trữ email");
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  const handleStar = async () => {
+  const handleStar = () => {
     if (!email) return;
-    setIsActionLoading(true);
-    try {
-      await emailService.modifyEmail(email.id, { star: !email.starred });
-      toast.success(email.starred ? "Removed star" : "Starred");
-      onEmailUpdated?.();
-    } catch {
-      toast.error("Failed to update star");
-    } finally {
-      setIsActionLoading(false);
-    }
+    // Use mutation for optimistic update - UI updates immediately
+    starMutation.mutate(
+      { emailId: email.id, starred: !email.starred },
+      {
+        onSuccess: () => {
+          onEmailUpdated?.();
+        }
+      }
+    );
   };
 
   const handleDownloadAttachment = async (attachmentId: string, filename?: string) => {
@@ -78,7 +81,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch {
-      toast.error("Failed to download attachment");
+      toast.error("Không thể tải tệp đính kèm");
     }
   };
 
@@ -94,7 +97,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
       toast.success(
         isPermanent
           ? "Email đã bị xóa vĩnh viễn"
-          : "Email đã được chuyển vào Trash"
+          : "Email đã được chuyển vào Thùng rác"
       );
       setDeleteModalOpen(false);
       onEmailUpdated?.();
@@ -140,7 +143,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
     <div className="flex-1 min-h-0 w-full flex flex-col bg-white dark:bg-slate-900">
       <EmailDetailHeader
         email={email}
-        isActionLoading={isActionLoading}
+        isActionLoading={isActionLoading || starMutation.isPending}
         onArchive={handleArchive}
         onDelete={() => setDeleteModalOpen(true)}
         onStar={handleStar}

@@ -242,7 +242,7 @@ export const useMarkEmailReadMutation = () => {
           queryClient.setQueryData(queryKey, data);
         });
       }
-      toast.error("Failed to update email status");
+      toast.error("Không thể cập nhật trạng thái email");
     },
     onSuccess: () => {
       // Only invalidate mailbox counts (not emails themselves - optimistic update is enough)
@@ -275,7 +275,7 @@ export const useStarEmailMutation = () => {
       return { emailId, starred };
     },
     onMutate: async ({ emailId, starred }) => {
-      // Cancel all outgoing refetches for emails and kanban
+      // Cancel all outgoing refetches for emails, kanban, and detail
       await queryClient.cancelQueries({ queryKey: emailKeys.all });
       await queryClient.cancelQueries({ queryKey: ["kanban"] });
 
@@ -286,6 +286,9 @@ export const useStarEmailMutation = () => {
       const previousKanban = queryClient.getQueriesData({
         queryKey: ["kanban"],
       });
+      const previousDetail = queryClient.getQueryData<Email>(
+        emailKeys.detail(emailId)
+      );
 
       // Optimistically update for infinite query (folder view)
       queryClient.setQueriesData<{
@@ -318,7 +321,15 @@ export const useStarEmailMutation = () => {
         };
       });
 
-      return { previousEmails, previousKanban };
+      // Optimistically update for email detail query (EmailDetailModal)
+      if (previousDetail) {
+        queryClient.setQueryData<Email>(emailKeys.detail(emailId), {
+          ...previousDetail,
+          starred,
+        });
+      }
+
+      return { previousEmails, previousKanban, previousDetail, emailId };
     },
     onError: (_err, _variables, context) => {
       // Rollback on error
@@ -332,7 +343,14 @@ export const useStarEmailMutation = () => {
           queryClient.setQueryData(queryKey, data);
         });
       }
-      toast.error("Failed to update starred status");
+      // Rollback email detail
+      if (context?.previousDetail && context?.emailId) {
+        queryClient.setQueryData(
+          emailKeys.detail(context.emailId),
+          context.previousDetail
+        );
+      }
+      toast.error("Không thể cập nhật trạng thái gắn sao");
     },
     onSuccess: (data) => {
       // Only invalidate mailbox counts (not emails themselves - optimistic update is enough)
@@ -340,7 +358,7 @@ export const useStarEmailMutation = () => {
 
       // Don't invalidate immediately - trust optimistic update
       // Queries will refetch naturally when they become stale
-      toast.success(data.starred ? "Email starred" : "Email unstarred");
+      toast.success(data.starred ? "Đã gắn sao email" : "Đã bỏ gắn sao email");
     },
     onSettled: () => {
       // After mutation completes (success or error), invalidate in background
@@ -422,14 +440,14 @@ export const useDeleteEmailMutation = () => {
           queryClient.setQueryData(queryKey, data);
         });
       }
-      toast.error("Khong the xoa email");
+      toast.error("Không thể xóa email");
     },
     onSuccess: (_data, variables) => {
       const isPermanent = variables.currentFolder === 'trash';
       toast.success(
         isPermanent
-          ? "Email da bi xoa vinh vien"
-          : "Email da duoc chuyen vao Trash"
+          ? "Email đã bị xóa vĩnh viễn"
+          : "Email đã được chuyển vào Thùng rác"
       );
     },
     onSettled: () => {
@@ -493,12 +511,12 @@ export const useMoveEmailMutation = () => {
           queryClient.setQueryData(queryKey, data);
         });
       }
-      toast.error("Failed to move email");
+      toast.error("Không thể di chuyển email");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
       queryClient.invalidateQueries({ queryKey: ["kanban"] });
-      toast.success("Email moved successfully");
+      toast.success("Đã di chuyển email thành công");
     },
   });
 };
@@ -593,10 +611,10 @@ export const useSendEmailMutation = () => {
       queryClient.invalidateQueries({ queryKey: emailKeys.all });
       queryClient.invalidateQueries({ queryKey: emailKeys.mailboxes() });
       queryClient.invalidateQueries({ queryKey: ["kanban"] });
-      toast.success("Email sent successfully");
+      toast.success("Đã gửi email thành công");
     },
     onError: () => {
-      toast.error("Failed to send email");
+      toast.error("Không thể gửi email");
     },
   });
 };

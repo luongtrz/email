@@ -32,7 +32,7 @@ export const useComposeForm = ({
     e.preventDefault();
 
     if (!to.trim()) {
-      toast.error("Please enter at least one recipient");
+      toast.error("Vui lòng nhập ít nhất một người nhận");
       return;
     }
 
@@ -51,12 +51,12 @@ export const useComposeForm = ({
       };
 
       await emailService.sendEmail(payload);
-      toast.success("Email sent successfully!");
+      toast.success("Đã gửi email thành công!");
       onSuccess?.();
       onClose();
     } catch (error) {
       logger.error("Failed to send email", error);
-      toast.error("Failed to send email");
+      toast.error("Không thể gửi email");
     } finally {
       setIsSending(false);
     }

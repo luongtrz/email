@@ -374,7 +374,7 @@ export const DashboardPage: React.FC = () => {
         }
       } catch (error) {
         logger.error("Failed to fetch full email", error);
-        toast.error("Failed to load email details");
+        toast.error("Không thể tải chi tiết email");
       } finally {
         setIsLoadingEmailDetail(false);
       }
@@ -405,7 +405,7 @@ export const DashboardPage: React.FC = () => {
         }
       } catch (error) {
         logger.error("Failed to fetch full email", error);
-        toast.error("Failed to load email details");
+        toast.error("Không thể tải chi tiết email");
       }
 
       // Mark as read with optimistic update

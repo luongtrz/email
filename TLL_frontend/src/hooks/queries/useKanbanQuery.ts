@@ -228,7 +228,7 @@ export const useGenerateSummaryMutation = () => {
     onSuccess: (data, variables) => {
       // Update cache
       queryClient.setQueryData(kanbanKeys.summary(variables.emailId), data);
-      toast.success("AI Summary generated!");
+      toast.success("Đã tạo tóm tắt AI!");
     },
     onError: (error: any) => {
       const message = error?.response?.data?.message || "Failed to generate summary";
@@ -391,7 +391,7 @@ export const useUpdateStatusMutation = () => {
       // Also invalidate snoozed if moving out of snoozed? 
       // Actually sourceColumnId would capture 'snoozed' if moving out of it.
 
-      toast.success("Email moved successfully!");
+      toast.success("Đã di chuyển email thành công!");
     },
 
     onError: (error: any, _variables, context) => {
@@ -421,7 +421,7 @@ export const useRestoreSnoozedMutation = () => {
         // Invalidate ALL queries to refresh everywhere
         queryClient.invalidateQueries({ queryKey: ["emails"] });
         queryClient.invalidateQueries({ queryKey: ["kanban"] }); // Includes all column queries
-        toast.success(`📬 ${data.restored} email(s) restored from snooze`);
+        toast.success(`${data.restored} email đã được khôi phục từ tạm hoãn`);
       }
     },
     onError: (error: any) => {
@@ -573,7 +573,7 @@ export const useSnoozeEmailMutation = () => {
       // Always invalidate snoozed column
       queryClient.invalidateQueries({ queryKey: [...kanbanKeys.all, "column", "snoozed"] });
 
-      toast.success("Email snoozed successfully!");
+      toast.success("Đã tạm hoãn email thành công!");
     },
 
     // Rollback on error
