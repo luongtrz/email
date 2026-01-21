@@ -25,17 +25,17 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({
   replyTo,
   forwardEmail,
 }) => {
-  const initialTo = replyTo ? replyTo.from.email : "";
+  const initialTo = replyTo?.from?.email || "";
   const initialSubject = replyTo
-    ? `Re: ${replyTo.subject}`
+    ? `Re: ${replyTo.subject || ''}`
     : forwardEmail
-      ? `Fwd: ${forwardEmail.subject}`
+      ? `Fwd: ${forwardEmail.subject || ''}`
       : "";
   const initialBody = replyTo
-    ? `\n\n---\nOn ${new Date().toLocaleDateString()}, ${replyTo.from.name
-    } wrote:\n${replyTo.body}`
+    ? `\n\n---\nOn ${new Date().toLocaleDateString()}, ${replyTo.from?.name || replyTo.from?.email || 'Someone'
+    } wrote:\n${replyTo.body || ''}`
     : forwardEmail
-      ? `\n\n\nForwarded message:\n${forwardEmail.body}`
+      ? `\n\n\nForwarded message:\n${forwardEmail.body || ''}`
       : "";
 
   const {
