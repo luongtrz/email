@@ -22,72 +22,7 @@ pipeline {
             }
         }
 
-        stage('Detect Changes') {
-            steps {
-                script {
-                    // Check if backend has changes
-                    def backendStatus = sh(
-                        script: """
-                            set -x
-                            if [ ! -d "${BACKEND_DIR}" ]; then
-                                echo "Directory ${BACKEND_DIR} not found"
-                                exit 1
-                            fi
-                            
-                            if [ -z "\${CHANGE_ID}" ]; then
-                                echo "Not a PR, skipping change detection"
-                                exit 0
-                            fi
-                            
-                            echo "Checking changes for ${BACKEND_DIR}..."
-                            # List changed files for information
-                            git diff --name-only remotes/origin/\${CHANGE_TARGET}...HEAD
-                            
-                            # Check if matches (grep returns 0 if found)
-                            git diff --name-only remotes/origin/\${CHANGE_TARGET}...HEAD | grep "^${BACKEND_DIR}/"
-                        """,
-                        returnStatus: true
-                    )
-                    
-                    // Check if frontend has changes
-                    def frontendStatus = sh(
-                        script: """
-                            set -x
-                            if [ ! -d "${FRONTEND_DIR}" ]; then
-                                echo "Directory ${FRONTEND_DIR} not found"
-                                exit 1
-                            fi
-                            
-                            if [ -z "\${CHANGE_ID}" ]; then
-                                echo "Not a PR, skipping change detection"
-                                exit 0
-                            fi
-                            
-                            echo "Checking changes for ${FRONTEND_DIR}..."
-                            # List changed files for information
-                            git diff --name-only remotes/origin/\${CHANGE_TARGET}...HEAD
-                            
-                            # Check if matches (grep returns 0 if found)
-                            git diff --name-only remotes/origin/\${CHANGE_TARGET}...HEAD | grep "^${FRONTEND_DIR}/"
-                        """,
-                        returnStatus: true
-                    )
-                    
-                    // Convert status codes to boolean strings
-                    // Status 0 = success (changes found or no PR), non-zero = no changes
-                    env.BUILD_BACKEND = (backendStatus == 0) ? 'true' : 'false'
-                    env.BUILD_FRONTEND = (frontendStatus == 0) ? 'true' : 'false'
-                    
-                    echo "Build Backend: ${env.BUILD_BACKEND}"
-                    echo "Build Frontend: ${env.BUILD_FRONTEND}"
-                }
-            }
-        }
-
         stage('Build Backend Docker Image') {
-            when {
-                expression { env.BUILD_BACKEND == 'true' }
-            }
             steps {
                 dir(env.BACKEND_DIR) {
                     script {
@@ -103,9 +38,6 @@ pipeline {
         }
 
         stage('Build Frontend Docker Image') {
-            when {
-                expression { env.BUILD_FRONTEND == 'true' }
-            }
             steps {
                 dir(env.FRONTEND_DIR) {
                     script {
