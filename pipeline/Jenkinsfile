@@ -20,49 +20,41 @@ pipeline {
             steps {
                 script {
                     // Check if backend has changes
-                    def backendChanged = sh(
+                    def backendStatus = sh(
                         script: """
-                            set +x
-                            if [ -d "${BACKEND_DIR}" ]; then
-                                if [ -n "\${CHANGE_ID}" ]; then
-                                    if git diff --name-only origin/\${CHANGE_TARGET}...HEAD 2>/dev/null | grep -q "^${BACKEND_DIR}/"; then
-                                        echo "true"
-                                    else
-                                        echo "false"
-                                    fi
-                                else
-                                    echo "true"
-                                fi
-                            else
-                                echo "false"
+                            if [ ! -d "${BACKEND_DIR}" ]; then
+                                exit 1
                             fi
+                            
+                            if [ -z "\${CHANGE_ID}" ]; then
+                                exit 0
+                            fi
+                            
+                            git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep -q "^${BACKEND_DIR}/"
                         """,
-                        returnStdout: true
-                    ).trim()
+                        returnStatus: true
+                    )
                     
                     // Check if frontend has changes
-                    def frontendChanged = sh(
+                    def frontendStatus = sh(
                         script: """
-                            set +x
-                            if [ -d "${FRONTEND_DIR}" ]; then
-                                if [ -n "\${CHANGE_ID}" ]; then
-                                    if git diff --name-only origin/\${CHANGE_TARGET}...HEAD 2>/dev/null | grep -q "^${FRONTEND_DIR}/"; then
-                                        echo "true"
-                                    else
-                                        echo "false"
-                                    fi
-                                else
-                                    echo "true"
-                                fi
-                            else
-                                echo "false"
+                            if [ ! -d "${FRONTEND_DIR}" ]; then
+                                exit 1
                             fi
+                            
+                            if [ -z "\${CHANGE_ID}" ]; then
+                                exit 0
+                            fi
+                            
+                            git diff --name-only origin/\${CHANGE_TARGET}...HEAD | grep -q "^${FRONTEND_DIR}/"
                         """,
-                        returnStdout: true
-                    ).trim()
+                        returnStatus: true
+                    )
                     
-                    env.BUILD_BACKEND = backendChanged
-                    env.BUILD_FRONTEND = frontendChanged
+                    // Convert status codes to boolean strings
+                    // Status 0 = success (changes found or no PR), non-zero = no changes
+                    env.BUILD_BACKEND = (backendStatus == 0) ? 'true' : 'false'
+                    env.BUILD_FRONTEND = (frontendStatus == 0) ? 'true' : 'false'
                     
                     echo "Build Backend: ${env.BUILD_BACKEND}"
                     echo "Build Frontend: ${env.BUILD_FRONTEND}"
