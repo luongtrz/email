@@ -10,7 +10,7 @@ export class EmailContentService {
     @InjectRepository(EmailContent)
     private emailContentRepository: Repository<EmailContent>,
     private embeddingService: EmbeddingService,
-  ) {}
+  ) { }
 
   /**
    * Store email content with embedding
@@ -30,12 +30,21 @@ export class EmailContentService {
       where: { emailId: params.emailId, userId: params.userId },
     });
 
-    // Generate embedding
-    const embedding = await this.embeddingService.generateEmailEmbedding(
-      params.subject,
-      params.body,
-    );
-    const embeddingStr = this.embeddingService.vectorToString(embedding);
+    // Try to generate embedding, but don't fail if it doesn't work
+    let embeddingStr: string | null = null;
+    let embeddingModel: string | null = null;
+
+    try {
+      const embedding = await this.embeddingService.generateEmailEmbedding(
+        params.subject,
+        params.body,
+      );
+      embeddingStr = this.embeddingService.vectorToString(embedding);
+      embeddingModel = 'text-embedding-004';
+    } catch (embeddingError) {
+      // Log but don't fail - email can be stored without embedding
+      console.warn(`Embedding failed for email ${params.emailId}, storing without embedding:`, embeddingError.message);
+    }
 
     if (emailContent) {
       // Update existing
@@ -45,14 +54,16 @@ export class EmailContentService {
       emailContent.from = params.from;
       emailContent.to = params.to;
       emailContent.date = params.date;
-      emailContent.embedding = embeddingStr;
-      emailContent.embeddingModel = 'text-embedding-004';
+      if (embeddingStr) {
+        emailContent.embedding = embeddingStr;
+        emailContent.embeddingModel = embeddingModel;
+      }
     } else {
       // Create new
       emailContent = this.emailContentRepository.create({
         ...params,
         embedding: embeddingStr,
-        embeddingModel: 'text-embedding-004',
+        embeddingModel: embeddingModel,
       });
     }
 
