@@ -44,6 +44,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    labels:
+      - "autoheal=true"
+
+  # Autoheal - Auto-restart unhealthy containers
+  autoheal:
+    image: willfarrell/autoheal
+    container_name: email_autoheal
+    restart: always
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=60
+      - AUTOHEAL_START_PERIOD=300
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - email_network
 
   # Frontend Vite/React served by Nginx
   frontend:
