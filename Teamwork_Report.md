@@ -9,7 +9,7 @@ GitHub repo URL: https://github.com/htloc0610/TLL_backend
 | :---- | :---- | :---- | :---- | :---- |
 | 22120120 | Trần Lượng | luongtrz / luongtrw | PROJ. LEADER. Frontend Architecture, Kanban Board, Email Detail, Search Features, UI/UX, Integration | 33% |
 | 22120157 | Huỳnh Tấn Lộc | htloc0610 | Backend Architecture, Gmail API Integration, Email Services, Database Design, Vector Search | 33% |
-| 22120163 | Luu Thai Toan | Tondeptrai23 | Feature Planning, Documentation, Testing, Report Generation, Support | 34% |
+| 22120163 | Lưu Thái Toàn | Tondeptrai23 | Feature Planning, Documentation, Testing, Report Generation, Support | 34% |
 
 # **FEATURE LIST**
 
